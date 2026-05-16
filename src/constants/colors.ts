@@ -1,0 +1,22 @@
+/** Technaware ERP Mobile — design tokens (see technaware_erp_mobile_prompt.md) */
+export const colors = {
+  primaryNavy: '#0d1b3e',
+  accentTeal: '#00c896',
+  pageBg: '#f0f2f5',
+  surface: '#ffffff',
+  textPrimary: '#111827',
+  textSecondary: '#6b7280',
+  textMuted: '#9ca3af',
+  borderSubtle: 'rgba(0,0,0,0.07)',
+  greetingBar: '#1a2d5a',
+  trendDown: '#ef4444',
+  linkBlue: '#1d4ed8',
+  statusApprovedBg: '#dcfce7',
+  statusApprovedText: '#166534',
+  statusPendingBg: '#fef3c7',
+  statusPendingText: '#92400e',
+  statusRejectedBg: '#fee2e2',
+  statusRejectedText: '#991b1b',
+  statusDraftBg: '#f3f4f6',
+  statusDraftText: '#4b5563',
+} as const;
