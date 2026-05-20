@@ -14,7 +14,7 @@ export function moduleListHasItems(moduleRoute: string, sp: StaffPortalModel): b
   if (isAccountingApiListModule(moduleRoute)) {
     return sp.accountingListRoute === moduleRoute && sp.accountingListItems.length > 0;
   }
-  if (webPathForPortalSurface(moduleRoute, sp.portal)) {
+  if (webPathForPortalSurface(moduleRoute, sp.portal) && moduleRoute !== 'Stock by store') {
     return true;
   }
   if (isHrCatalogRoute(moduleRoute)) {

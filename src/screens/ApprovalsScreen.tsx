@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   RefreshControl,
@@ -41,6 +42,7 @@ export function ApprovalsScreen() {
     loadApprovals,
     setApprovalNotes,
     setApprovalStatus,
+    onPortalNotify,
     moduleError,
     moduleLoading,
     refreshing,
@@ -50,8 +52,11 @@ export function ApprovalsScreen() {
 
   const approvalsAccessGate = useMemo(() => portalModuleAccessGate(portal, 'Approvals'), [portal]);
   const [pending, setPending] = useState<PendingDecision | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>(route.params?.typeFilter ?? 'All');
   const moduleScores = approvalSummary?.modules ?? [];
+  const moduleScoresRef = useRef(moduleScores);
+  moduleScoresRef.current = moduleScores;
 
   const applyTypeFilter = useCallback(
     (nextType: string, opts?: { force?: boolean; kind?: string }) => {
@@ -85,9 +90,11 @@ export function ApprovalsScreen() {
       setPortalSelectedModule('Approvals');
       const initialType = route.params?.typeFilter ?? 'All';
       const initialKind =
-        route.params?.kindFilter ?? approvalKindForTypeLabel(initialType, approvalSummary?.modules ?? []);
+        route.params?.kindFilter?.trim() ||
+        approvalKindForTypeLabel(initialType, moduleScoresRef.current) ||
+        '';
       setTypeFilter(initialType);
-      void loadApprovals(1, { force: true, kind: initialKind ?? '' });
+      void loadApprovals(1, { force: true, kind: initialKind });
     }, [
       approvalsAccessGate,
       setPortalActiveTab,
@@ -95,14 +102,28 @@ export function ApprovalsScreen() {
       loadApprovals,
       route.params?.typeFilter,
       route.params?.kindFilter,
-      approvalSummary?.modules,
     ]),
   );
 
   const confirmAction = async () => {
-    if (!pending) return;
-    await setApprovalStatus(pending.id, pending.status);
+    if (!pending || confirming) {
+      return;
+    }
+    setConfirming(true);
+    const result = await setApprovalStatus(pending.id, pending.status);
+    setConfirming(false);
+    if (!result.ok) {
+      Alert.alert(
+        pending.status === 'Approved' ? 'Approve failed' : 'Reject failed',
+        result.error,
+      );
+      return;
+    }
     setPending(null);
+    onPortalNotify?.(
+      pending.status === 'Approved' ? 'Request approved.' : 'Request rejected.',
+      'success',
+    );
   };
 
   const openDetail = (id: string, ref: string) => {
@@ -388,8 +409,16 @@ export function ApprovalsScreen() {
         ) : null}
       </ScrollView>
 
-      <Modal visible={pending != null} transparent animationType="slide" onRequestClose={() => setPending(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }} onPress={() => setPending(null)}>
+      <Modal
+        visible={pending != null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !confirming && setPending(null)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
+          onPress={() => !confirming && setPending(null)}
+        >
           <Pressable
             onPress={(e) => e.stopPropagation()}
             style={{
@@ -407,16 +436,22 @@ export function ApprovalsScreen() {
             <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 8 }}>
               This will send your optional note to the server and refresh the inbox.
             </Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 20 }}>
-              <Pressable onPress={() => setPending(null)} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 20 }}>
+              <Pressable
+                onPress={() => !confirming && setPending(null)}
+                disabled={confirming}
+                style={{ paddingVertical: 10, paddingHorizontal: 14 }}
+              >
                 <Text style={{ color: colors.textSecondary, fontWeight: '500' }}>Cancel</Text>
               </Pressable>
               <Pressable
                 onPress={() => void confirmAction()}
-                style={{ paddingVertical: 10, paddingHorizontal: 14, marginLeft: 8 }}
+                disabled={confirming}
+                style={{ paddingVertical: 10, paddingHorizontal: 14, marginLeft: 8, flexDirection: 'row', alignItems: 'center' }}
               >
+                {confirming ? <ActivityIndicator size="small" color={colors.accentTeal} style={{ marginRight: 8 }} /> : null}
                 <Text style={{ color: pending?.status === 'Approved' ? colors.statusApprovedText : colors.statusRejectedText, fontWeight: '500' }}>
-                  Confirm
+                  {confirming ? 'Saving…' : 'Confirm'}
                 </Text>
               </Pressable>
             </View>

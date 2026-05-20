@@ -5,6 +5,8 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from '
 import { Text } from '../components/AppTypography';
 import { SimpleBarChart } from '../components/reports/SimpleBarChart';
 import { getMobileOperationalReports, type MobileOperationalReports } from '../api';
+import { PortalHeaderActions } from '../components/PortalHeaderActions';
+import { TopBar } from '../components/TopBar';
 import { colors } from '../constants/colors';
 import { outfit } from '../constants/typography';
 import { useStaffPortal } from '../context/StaffPortalContext';
@@ -139,7 +141,11 @@ function OperationalInsights({
               : 'qty n/a'}
           </Text>
           <View style={{ marginTop: 14 }}>
-            <SimpleBarChart points={consumptionPoints} barColor={colors.primaryNavy} />
+            <SimpleBarChart
+              points={consumptionPoints}
+              barColor={colors.primaryNavy}
+              legend={[{ label: 'Quantity issued (store → kitchen)', color: colors.primaryNavy }]}
+            />
           </View>
         </View>
       ) : null}
@@ -160,7 +166,10 @@ function OperationalInsights({
             K→S {fmtCount(movements.kitchen_to_store_30d)} · S→K {fmtCount(movements.store_to_kitchen_30d)} (30 days)
           </Text>
           <View style={{ marginTop: 14 }}>
-            <SimpleBarChart points={movementPoints} />
+            <SimpleBarChart
+              points={movementPoints}
+              legend={[{ label: 'Total movement documents (K↔S)', color: colors.accentTeal }]}
+            />
           </View>
         </View>
       ) : null}
@@ -180,7 +189,11 @@ function OperationalInsights({
             Open POs {fmtCount(procurement.open_purchase_orders)} · Open reqs {fmtCount(procurement.open_requisitions)}
           </Text>
           <View style={{ marginTop: 14 }}>
-            <SimpleBarChart points={procurementPoints} barColor="#5B7FD6" />
+            <SimpleBarChart
+              points={procurementPoints}
+              barColor="#5B7FD6"
+              legend={[{ label: 'Open POs + open requisitions (per month)', color: '#5B7FD6' }]}
+            />
           </View>
         </View>
       ) : null}
@@ -251,15 +264,15 @@ export function ReportsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.pageBg }}>
-      <View style={{ backgroundColor: colors.primaryNavy, paddingHorizontal: 16, paddingVertical: 14 }}>
-        <Text style={{ ...outfit('medium', 18), color: '#fff' }}>Reports</Text>
-        <Text style={{ ...outfit('regular', 12), color: 'rgba(255,255,255,0.75)', marginTop: 4 }}>
-          Status snapshot · inventory, purchasing & finance
-        </Text>
-        {mobileSummaryUpdatedAt ? (
-          <Text style={{ ...outfit('regular', 11), color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>Updated {mobileSummaryUpdatedAt}</Text>
-        ) : null}
-      </View>
+      <TopBar
+        title="Reports"
+        subtitle={
+          mobileSummaryUpdatedAt
+            ? `Status snapshot · Updated ${mobileSummaryUpdatedAt}`
+            : 'Status snapshot · inventory, purchasing & finance'
+        }
+        right={<PortalHeaderActions />}
+      />
 
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 120 }}

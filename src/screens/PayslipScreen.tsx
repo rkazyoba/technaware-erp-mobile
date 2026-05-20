@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { Text } from '../components/AppTypography';
 import { EmployeeProfileRequiredCard } from '../components/EmployeeProfileRequiredCard';
+import { PortalHeaderActions } from '../components/PortalHeaderActions';
 import { TopBar } from '../components/TopBar';
 import { colors } from '../constants/colors';
 import { outfit } from '../constants/typography';
@@ -53,7 +54,7 @@ export function PayslipScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.pageBg }}>
-      <TopBar title="Payslip" />
+      <TopBar title="Payslip" right={<PortalHeaderActions />} />
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onPullRefresh()} tintColor={colors.accentTeal} />}

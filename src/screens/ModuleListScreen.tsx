@@ -31,6 +31,8 @@ import {
 } from '../utils/financeReportPortal';
 import { isOperationalReportMobileModule } from '../utils/operationalReportPortal';
 import { OperationalReportsPanel } from './OperationalReportsPanel';
+import { ReportWebExportPanel } from '../components/reports/ReportWebExportPanel';
+import { reportWebPdfPath } from '../utils/reportWebPdfUrls';
 import type { ModulesStackParamList, RecordDetailParams } from '../navigation/moduleStackTypes';
 import { FinanceReportsPanel } from './FinanceReportsPanel';
 import { styles } from '../styles/appStyles';
@@ -101,6 +103,8 @@ function hasListFirstUi(moduleRoute: string, portal: ReturnType<typeof useStaffP
     isLogisticsModule(moduleRoute) ||
     moduleRoute === 'Requisitions' ||
     moduleRoute === 'Purchase orders' ||
+    moduleRoute === 'Purchase RFQs' ||
+    moduleRoute === 'Supplier quotations' ||
     moduleRoute === 'Suppliers' ||
     moduleRoute === 'Customer invoices' ||
     moduleRoute === 'Proforma invoices' ||
@@ -153,6 +157,16 @@ export function ModuleListScreen() {
     canCreateDeliveryNote,
     canCreateKitchenToStoreMovement,
     canCreateStoreToKitchenMovement,
+    canCreatePoReceipt,
+    canCreateNonPoReceipt,
+    canCreateSupplierReturn,
+    canCreatePickTicket,
+    canCreateSupplier,
+    canUpdateSupplier,
+    canCreateUnit,
+    canUpdateUnit,
+    canCreateCategory,
+    canUpdateCategory,
     operationalInterStoreIssues,
     operationalInterStoreReceipts,
     moduleLoading,
@@ -169,6 +183,18 @@ export function ModuleListScreen() {
     purchaseOrderHasMore,
     purchaseOrdersUpdatedAt,
     loadPurchaseOrders,
+    purchaseRfqItems,
+    purchaseRfqPage,
+    purchaseRfqHasMore,
+    purchaseRfqsUpdatedAt,
+    loadPurchaseRfqs,
+    canViewMobilePurchaseRfqs,
+    supplierQuotationItems,
+    supplierQuotationPage,
+    supplierQuotationHasMore,
+    supplierQuotationsUpdatedAt,
+    loadSupplierQuotations,
+    canViewMobileSupplierQuotations,
 
     // Finance (commercial)
     customerInvoiceItems,
@@ -362,7 +388,11 @@ export function ModuleListScreen() {
   const moduleAccessGate = useMemo(() => portalModuleAccessGate(portal, moduleRoute.trim()), [portal, moduleRoute]);
 
   const portalWebPath = useMemo(() => webPathForPortalSurface(moduleRoute, portal), [moduleRoute, portal]);
-  const showPortalWebPanel = Boolean(portalWebPath) && !isAccountingApiListModule(moduleRoute) && !isFinanceReportMobileModule(moduleRoute);
+  const showPortalWebPanel =
+    Boolean(portalWebPath) &&
+    !isAccountingApiListModule(moduleRoute) &&
+    !isFinanceReportMobileModule(moduleRoute) &&
+    moduleRoute !== 'Stock by store';
   const portalSurfaceRow = useMemo(
     () => portal?.surfaces?.find((s) => s.visible && s.route === moduleRoute),
     [portal?.surfaces, moduleRoute],
@@ -607,6 +637,53 @@ export function ModuleListScreen() {
             <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>Create</Text>
           </Pressable>
         ) : null}
+        {moduleRoute === 'GRN (PO)' && canCreatePoReceipt ? (
+          <Pressable onPress={() => navigation.navigate('PoGrnHeader')} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
+            <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>Create</Text>
+          </Pressable>
+        ) : null}
+        {moduleRoute === 'Supplier returns' && canCreateSupplierReturn ? (
+          <Pressable
+            onPress={() => navigation.navigate('SupplierReturnHeader')}
+            style={{ paddingHorizontal: 10, paddingVertical: 6 }}
+          >
+            <Text style={{ ...outfit('medium', 13), color: colors.accentTeal }}>+ New</Text>
+          </Pressable>
+        ) : null}
+        {moduleRoute === 'Pick tickets' && canCreatePickTicket ? (
+          <Pressable onPress={() => navigation.navigate('PickTicketHeader')} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
+            <Text style={{ ...outfit('medium', 13), color: colors.accentTeal }}>+ New</Text>
+          </Pressable>
+        ) : null}
+        {moduleRoute === 'Non-PO receipts' && canCreateNonPoReceipt ? (
+          <Pressable onPress={() => navigation.navigate('NonPoGrnHeader')} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
+            <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>Create</Text>
+          </Pressable>
+        ) : null}
+        {moduleRoute === 'Suppliers' && canCreateSupplier ? (
+          <Pressable
+            onPress={() => navigation.navigate('MasterCatalogEdit', { kind: 'supplier', moduleRoute: 'Suppliers' })}
+            style={{ paddingHorizontal: 10, paddingVertical: 6 }}
+          >
+            <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>Create</Text>
+          </Pressable>
+        ) : null}
+        {moduleRoute === 'Units' && canCreateUnit ? (
+          <Pressable
+            onPress={() => navigation.navigate('MasterCatalogEdit', { kind: 'unit', moduleRoute: 'Units' })}
+            style={{ paddingHorizontal: 10, paddingVertical: 6 }}
+          >
+            <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>Create</Text>
+          </Pressable>
+        ) : null}
+        {moduleRoute === 'Categories' && canCreateCategory ? (
+          <Pressable
+            onPress={() => navigation.navigate('MasterCatalogEdit', { kind: 'category', moduleRoute: 'Categories' })}
+            style={{ paddingHorizontal: 10, paddingVertical: 6 }}
+          >
+            <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>Create</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {isOperationalReportMobileModule(moduleRoute) ? (
@@ -778,6 +855,41 @@ export function ModuleListScreen() {
                 onPress={() => {
                   const p = logisticsPathFor(moduleRoute, storeMovementKind);
                   if (!p) return;
+                  if (moduleRoute === 'Delivery notes') {
+                    navigation.navigate('DeliveryNoteLines', { deliveryNoteId: item.id });
+                    return;
+                  }
+                  if (moduleRoute === 'Non-PO receipts') {
+                    navigation.navigate('NonPoReceiptWorkspace', { receiptId: item.id });
+                    return;
+                  }
+                  if (moduleRoute === 'GRN (PO)') {
+                    navigation.navigate('PoReceiptWorkspace', { receiptId: item.id });
+                    return;
+                  }
+                  if (moduleRoute === 'Supplier returns') {
+                    navigation.navigate('SupplierReturnWorkspace', { supplierReturnId: item.id });
+                    return;
+                  }
+                  if (moduleRoute === 'Pick tickets') {
+                    navigation.navigate('PickTicketWorkspace', { pickTicketId: item.id });
+                    return;
+                  }
+                  if (moduleRoute === 'Store movements') {
+                    const docKind =
+                      storeMovementKind === 'k2s' ? ('kitchen_to_store' as const) : ('store_to_kitchen' as const);
+                    const ctxParts = (item.context ?? '').split('→').map((s) => s.trim());
+                    const stockStoreName =
+                      storeMovementKind === 'k2s' ? ctxParts[0] ?? '' : ctxParts[1] ?? ctxParts[0] ?? '';
+                    navigation.navigate('StoreMovementLines', {
+                      issueId: item.id,
+                      docKind,
+                      stockStoreName,
+                      readOnly: item.status !== '0',
+                      initialTab: 'overview',
+                    });
+                    return;
+                  }
                   openRecordDetail({
                     moduleRoute,
                     detailKind: 'logistics',
@@ -934,6 +1046,129 @@ export function ModuleListScreen() {
               : null}
             {canViewMobilePurchaseOrders && purchaseOrderHasMore ? (
               <Pressable style={styles.detailsButton} onPress={() => void loadPurchaseOrders(purchaseOrderPage + 1)}>
+                <Text style={styles.detailsButtonText}>Load more</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Purchase RFQs' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {purchaseRfqsUpdatedAt ?? 'Not synced yet'}</Text>
+            {!canViewMobilePurchaseRfqs ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Purchase RFQs not available</Text>
+                <Text style={styles.emptyStateText}>You do not have permission to view requests for quotation.</Text>
+              </View>
+            ) : null}
+            {moduleError ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Could not load purchase RFQs</Text>
+                <Text style={styles.emptyStateText}>{moduleError}</Text>
+                <Pressable style={styles.detailsButton} onPress={() => void loadPurchaseRfqs(1)}>
+                  <Text style={styles.detailsButtonText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {canViewMobilePurchaseRfqs && !moduleError && !moduleLoading && purchaseRfqItems.length === 0 ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>No purchase RFQs</Text>
+                <Text style={styles.emptyStateText}>RFQs linked to requisitions you can access will appear here.</Text>
+              </View>
+            ) : null}
+            {canViewMobilePurchaseRfqs
+              ? purchaseRfqItems.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    style={styles.approvalCard}
+                    onPress={() =>
+                      openRecordDetail({
+                        moduleRoute: 'Purchase RFQs',
+                        detailKind: 'purchase_rfq',
+                        recordId: item.id,
+                        titleHint: item.ref,
+                      })
+                    }
+                  >
+                    <View style={styles.approvalHeader}>
+                      <Text style={styles.approvalId}>{item.ref}</Text>
+                      <Text style={styles.approvalStatus}>{item.status_label}</Text>
+                    </View>
+                    <Text style={styles.approvalSubject} numberOfLines={2}>
+                      Req {item.requisition_ref || '—'} · {item.description || '—'}
+                    </Text>
+                    <Text style={styles.approvalOwner}>
+                      {item.site || '—'}
+                      {item.store ? ` · ${item.store}` : ''}
+                      {item.quotation_count > 0 ? ` · ${item.quotation_count} quote(s)` : ''}
+                    </Text>
+                  </Pressable>
+                ))
+              : null}
+            {canViewMobilePurchaseRfqs && purchaseRfqHasMore ? (
+              <Pressable style={styles.detailsButton} onPress={() => void loadPurchaseRfqs(purchaseRfqPage + 1)}>
+                <Text style={styles.detailsButtonText}>Load more</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Supplier quotations' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {supplierQuotationsUpdatedAt ?? 'Not synced yet'}</Text>
+            {!canViewMobileSupplierQuotations ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Supplier quotations not available</Text>
+                <Text style={styles.emptyStateText}>You do not have permission to view supplier quotations.</Text>
+              </View>
+            ) : null}
+            {moduleError ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Could not load supplier quotations</Text>
+                <Text style={styles.emptyStateText}>{moduleError}</Text>
+                <Pressable style={styles.detailsButton} onPress={() => void loadSupplierQuotations(1)}>
+                  <Text style={styles.detailsButtonText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {canViewMobileSupplierQuotations && !moduleError && !moduleLoading && supplierQuotationItems.length === 0 ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>No supplier quotations</Text>
+                <Text style={styles.emptyStateText}>Quotations received against RFQs will appear here.</Text>
+              </View>
+            ) : null}
+            {canViewMobileSupplierQuotations
+              ? supplierQuotationItems.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    style={styles.approvalCard}
+                    onPress={() =>
+                      openRecordDetail({
+                        moduleRoute: 'Supplier quotations',
+                        detailKind: 'supplier_quotation',
+                        recordId: item.id,
+                        titleHint: item.ref,
+                      })
+                    }
+                  >
+                    <View style={styles.approvalHeader}>
+                      <Text style={styles.approvalId}>{item.ref}</Text>
+                      <Text style={styles.approvalStatus}>{item.status_label}</Text>
+                    </View>
+                    <Text style={styles.approvalSubject} numberOfLines={2}>
+                      {item.supplier_name || '—'}
+                    </Text>
+                    <Text style={styles.approvalOwner}>
+                      RFQ {item.rfq_no || '—'} · {item.quotation_date ?? '—'} · {item.total.toFixed(2)}
+                    </Text>
+                  </Pressable>
+                ))
+              : null}
+            {canViewMobileSupplierQuotations && supplierQuotationHasMore ? (
+              <Pressable
+                style={styles.detailsButton}
+                onPress={() => void loadSupplierQuotations(supplierQuotationPage + 1)}
+              >
                 <Text style={styles.detailsButtonText}>Load more</Text>
               </Pressable>
             ) : null}
@@ -2238,6 +2473,11 @@ export function ModuleListScreen() {
                 >
                   <Text style={{ ...outfit('medium', 12), color: colors.primaryNavy }}>← Change store</Text>
                 </Pressable>
+                <ReportWebExportPanel
+                  compact
+                  webPath={portalWebPath ?? '/view/stock/report'}
+                  pdfPathOrUrl={reportWebPdfPath('Stock by store', { storeId: stockStoreId }) ?? undefined}
+                />
                 <Text style={styles.syncText}>Lines: {stockLinesUpdatedAt ?? '—'}</Text>
                 <ModuleSearchToolbar
                   value={stockSearchInput}

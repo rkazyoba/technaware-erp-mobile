@@ -14,9 +14,13 @@ import {
   View,
 } from 'react-native';
 import { Text } from '../components/AppTypography';
+import { DetailTabBar } from '../components/DetailTabBar';
+import { StatusBadge } from '../components/StatusBadge';
+import { TopBar, TopBarIconButton } from '../components/TopBar';
 import {
   deleteKitchenToStoreMovementLine,
   deleteStoreToKitchenMovementLine,
+  getCatalogUnitPrice,
   getLogisticsDocDetail,
   getStockReportLines,
   postKitchenToStoreMovementLine,
@@ -35,7 +39,10 @@ import { staffPortalHasPermission } from '../utils/staffPortalPermissions';
 export function StoreMovementLinesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ModulesStackParamList>>();
   const route = useRoute<RouteProp<ModulesStackParamList, 'StoreMovementLines'>>();
-  const { docKind, issueId, stockStoreName } = route.params;
+  const { docKind, issueId, stockStoreName, readOnly = false, initialTab } = route.params;
+
+  const TAB_OVERVIEW = 'overview';
+  const TAB_LINES = 'lines';
 
   const sp = useStaffPortal();
   const { token, portal, stockStores, loadStockStores, setPortalActiveTab, setPortalSelectedModule } = sp;
@@ -48,6 +55,10 @@ export function StoreMovementLinesScreen() {
     }
     return staffPortalHasPermission(portal, 'erp.user.store_to_kitchen');
   }, [docKind, portal]);
+
+  const canView = canEdit || staffPortalHasPermission(portal, 'erp.nav.inventory');
+
+  const [detailTab, setDetailTab] = useState(initialTab ?? TAB_OVERVIEW);
 
   const basePath = storeMovementDetailBasePath(docKind);
 
@@ -65,6 +76,8 @@ export function StoreMovementLinesScreen() {
   const [unitPriceInput, setUnitPriceInput] = useState('0');
   const [savingLine, setSavingLine] = useState(false);
   const [deletingLineId, setDeletingLineId] = useState<string | null>(null);
+
+  const linesEditable = Boolean(detail && canEdit && !readOnly && detail.status === '0');
 
   const stockStoreId = useMemo(() => {
     const hit = stockStores.find((s) => s.name.trim() === stockStoreName.trim());
@@ -220,7 +233,7 @@ export function StoreMovementLinesScreen() {
     );
   }
 
-  if (moduleGate === 'denied' || !isPortalModuleRouteAccessible(portal, 'Store movements') || !canEdit) {
+  if (moduleGate === 'denied' || !isPortalModuleRouteAccessible(portal, 'Store movements') || !canView) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.pageBg, padding: 20 }}>
         <Text style={{ ...outfit('medium', 16), color: colors.textPrimary }}>Not available</Text>
@@ -231,21 +244,15 @@ export function StoreMovementLinesScreen() {
     );
   }
 
-  const docLabel =
-    docKind === 'kitchen_to_store'
-      ? 'Kitchen → store · kitchen_to_stores / kitchen_to_store_details'
-      : 'Store → kitchen · store_to_kitchens / store_to_kitchen_details';
+  const movementTitle = docKind === 'kitchen_to_store' ? 'Kitchen → store' : 'Store → kitchen';
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.pageBg }}>
-      <View style={{ backgroundColor: colors.primaryNavy, paddingHorizontal: 12, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }}>
-        <Pressable onPress={() => navigation.goBack()} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="arrow-back" size={18} color="#fff" />
-        </Pressable>
-        <Text style={{ flex: 1, marginLeft: 10, ...outfit('medium', 15), color: '#fff' }} numberOfLines={2}>
-          Lines · {detail?.ref ?? issueId}
-        </Text>
-      </View>
+      <TopBar
+        title={detail?.ref ?? 'Store movement'}
+        subtitle={readOnly ? 'View movement' : 'Movement workspace'}
+        left={<TopBarIconButton name="arrow-back" onPress={() => navigation.goBack()} />}
+      />
 
       {loading && !detail ? (
         <View style={{ padding: 24, alignItems: 'center' }}>
@@ -263,81 +270,114 @@ export function StoreMovementLinesScreen() {
       ) : null}
 
       {detail ? (
-        <ScrollView
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={colors.accentTeal} />}
-          contentContainerStyle={{ paddingBottom: 120 }}
-        >
-          <View style={{ paddingHorizontal: 16, paddingTop: 14 }}>
-            <Text style={{ ...outfit('regular', 12), color: colors.textMuted }}>{docLabel}</Text>
-            <Text style={{ ...outfit('medium', 18), color: colors.textPrimary, marginTop: 6 }}>{detail.ref}</Text>
-            <Text style={{ ...outfit('regular', 14), color: colors.textSecondary, marginTop: 4 }}>{detail.description}</Text>
-            <Text style={{ ...outfit('regular', 13), color: colors.textSecondary, marginTop: 6 }}>{detail.context}</Text>
-            <Text style={{ ...outfit('regular', 13), color: colors.textSecondary, marginTop: 4 }}>
-              Status: {detail.status_label} · Total: {detail.total_amount != null ? detail.total_amount.toFixed(2) : '—'}
-            </Text>
-            <Text style={{ ...outfit('regular', 12), color: colors.textMuted, marginTop: 8 }}>
-              Stock cards from store: <Text style={{ ...outfit('medium', 12), color: colors.textSecondary }}>{stockStoreName}</Text>
-              {docKind === 'kitchen_to_store'
-                ? ' (each line deducts issued qty from this store)'
-                : ' (each line increases returned qty into this store)'}
-            </Text>
-
-            <Pressable
-              onPress={() => void openStockPicker()}
-              style={{
-                marginTop: 16,
-                paddingVertical: 14,
-                borderRadius: 12,
-                backgroundColor: colors.accentTeal,
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ ...outfit('medium', 15), color: '#fff' }}>Add line (saves immediately)</Text>
-            </Pressable>
+        <>
+          <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 }}>
+            <DetailTabBar
+              tabs={[
+                { id: TAB_OVERVIEW, label: 'Details' },
+                { id: TAB_LINES, label: 'Lines' },
+              ]}
+              active={detailTab}
+              onChange={setDetailTab}
+            />
           </View>
-
-          <Text style={{ ...outfit('medium', 12), color: colors.textMuted, paddingHorizontal: 16, marginTop: 20, marginBottom: 8 }}>Saved lines</Text>
-          {detail.lines.length === 0 ? (
-            <Text style={{ ...outfit('regular', 14), color: colors.textSecondary, paddingHorizontal: 16 }}>No lines yet.</Text>
-          ) : (
-            detail.lines.map((ln) => (
-              <View
-                key={ln.id}
-                style={{
-                  marginHorizontal: 16,
-                  marginBottom: 10,
-                  padding: 14,
-                  borderRadius: 14,
-                  backgroundColor: colors.surface,
-                  borderWidth: 0.5,
-                  borderColor: colors.borderSubtle,
-                  flexDirection: 'row',
-                  alignItems: 'flex-start',
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>{ln.item}</Text>
-                  <Text style={{ ...outfit('regular', 12), color: colors.textMuted, marginTop: 4 }}>
-                    Qty {ln.quantity} {ln.unit ? `· ${ln.unit}` : ''}
-                  </Text>
-                  <Text style={{ ...outfit('regular', 11), color: colors.textMuted, marginTop: 4 }}>Detail #{ln.id}</Text>
+          <ScrollView
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={colors.accentTeal} />}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
+          >
+            {detailTab === TAB_OVERVIEW ? (
+              <View style={{ paddingTop: 8 }}>
+                <Text style={{ ...outfit('regular', 12), color: colors.textMuted }}>{movementTitle}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                  <Text style={{ ...outfit('medium', 18), color: colors.textPrimary, flex: 1 }}>{detail.ref}</Text>
+                  <StatusBadge label={detail.status_label} />
                 </View>
-                <Pressable
-                  onPress={() => confirmDeleteLine(ln.id)}
-                  disabled={deletingLineId === ln.id}
-                  style={{ padding: 8 }}
-                  hitSlop={6}
-                >
-                  {deletingLineId === ln.id ? (
-                    <ActivityIndicator size="small" color={colors.statusRejectedText} />
-                  ) : (
-                    <Ionicons name="trash-outline" size={22} color={colors.statusRejectedText} />
-                  )}
-                </Pressable>
+                <Text style={{ ...outfit('regular', 14), color: colors.textSecondary, marginTop: 4 }}>{detail.description}</Text>
+                <Text style={{ ...outfit('regular', 13), color: colors.textSecondary, marginTop: 6 }}>{detail.context}</Text>
+                <Text style={{ ...outfit('regular', 13), color: colors.textSecondary, marginTop: 4 }}>
+                  Total: {detail.total_amount != null ? detail.total_amount.toFixed(2) : '—'}
+                  {detail.document_date ? ` · ${detail.document_date}` : ''}
+                </Text>
+                <Text style={{ ...outfit('regular', 12), color: colors.textMuted, marginTop: 8 }}>
+                  Stock store: <Text style={{ ...outfit('medium', 12), color: colors.textSecondary }}>{stockStoreName}</Text>
+                </Text>
+                <Text style={{ ...outfit('regular', 12), color: colors.textMuted, marginTop: 6 }}>
+                  {detail.lines.length} line{detail.lines.length === 1 ? '' : 's'} on this movement.
+                </Text>
               </View>
-            ))
-          )}
-        </ScrollView>
+            ) : null}
+
+            {detailTab === TAB_LINES ? (
+              <View style={{ paddingTop: 8 }}>
+                <Text style={{ ...outfit('regular', 13), color: colors.textSecondary, marginBottom: 12 }}>
+                  {linesEditable
+                    ? 'Add stock lines for this movement. Each line saves immediately.'
+                    : readOnly
+                      ? 'Lines are read-only.'
+                      : 'Lines cannot be changed in this status.'}
+                </Text>
+                {linesEditable ? (
+                  <Pressable
+                    onPress={() => void openStockPicker()}
+                    style={{
+                      marginBottom: 16,
+                      paddingVertical: 14,
+                      borderRadius: 12,
+                      backgroundColor: colors.accentTeal,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ ...outfit('medium', 15), color: '#fff' }}>Add line</Text>
+                  </Pressable>
+                ) : null}
+                {detail.lines.length === 0 ? (
+                  <Text style={{ ...outfit('regular', 14), color: colors.textSecondary }}>No lines yet.</Text>
+                ) : (
+                  detail.lines.map((ln) => (
+                    <View
+                      key={ln.id}
+                      style={{
+                        marginBottom: 10,
+                        padding: 14,
+                        borderRadius: 14,
+                        backgroundColor: colors.surface,
+                        borderWidth: 0.5,
+                        borderColor: colors.borderSubtle,
+                        flexDirection: 'row',
+                        alignItems: 'flex-start',
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>{ln.item}</Text>
+                        <Text style={{ ...outfit('regular', 12), color: colors.textMuted, marginTop: 4 }}>
+                          Qty {ln.quantity}
+                          {ln.unit ? ` · ${ln.unit}` : ''}
+                          {ln.pax != null && ln.pax > 0 ? ` · Pax ${ln.pax}` : ''}
+                          {ln.unit_price != null ? ` · @ ${ln.unit_price.toFixed(2)}` : ''}
+                          {ln.line_amount != null ? ` · ${ln.line_amount.toFixed(2)}` : ''}
+                        </Text>
+                      </View>
+                      {linesEditable ? (
+                        <Pressable
+                          onPress={() => confirmDeleteLine(ln.id)}
+                          disabled={deletingLineId === ln.id}
+                          style={{ padding: 8 }}
+                          hitSlop={6}
+                        >
+                          {deletingLineId === ln.id ? (
+                            <ActivityIndicator size="small" color={colors.statusRejectedText} />
+                          ) : (
+                            <Ionicons name="trash-outline" size={22} color={colors.statusRejectedText} />
+                          )}
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ))
+                )}
+              </View>
+            ) : null}
+          </ScrollView>
+        </>
       ) : null}
 
       <Modal visible={lineModalOpen} transparent animationType="slide" onRequestClose={() => !savingLine && setLineModalOpen(false)}>
@@ -358,6 +398,17 @@ export function StoreMovementLinesScreen() {
                         setSelectedStock(item);
                         const q = docKind === 'kitchen_to_store' ? Math.min(1, item.quantity || 1) : 1;
                         setQtyInput(String(q));
+                        setUnitPriceInput('0');
+                        void getCatalogUnitPrice(token, item.id, detail?.document_date ?? undefined)
+                          .then((res) => {
+                            const p = res.data?.price ?? 0;
+                            if (p > 0) {
+                              setUnitPriceInput(String(p));
+                            }
+                          })
+                          .catch(() => {
+                            /* keep editable default */
+                          });
                       }}
                       style={{ paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: colors.borderSubtle }}
                     >

@@ -20,6 +20,15 @@ import { StoreMovementLinesScreen } from '../screens/StoreMovementLinesScreen';
 import { DeliveryNoteHeaderScreen } from '../screens/DeliveryNoteHeaderScreen';
 import { DeliveryNoteLinesScreen } from '../screens/DeliveryNoteLinesScreen';
 import { LeaveRequestFormScreen } from '../screens/LeaveRequestFormScreen';
+import { PoGrnHeaderScreen } from '../screens/PoGrnHeaderScreen';
+import { PoReceiptWorkspaceScreen } from '../screens/PoReceiptWorkspaceScreen';
+import { NonPoGrnHeaderScreen } from '../screens/NonPoGrnHeaderScreen';
+import { NonPoReceiptWorkspaceScreen } from '../screens/NonPoReceiptWorkspaceScreen';
+import { SupplierReturnHeaderScreen } from '../screens/SupplierReturnHeaderScreen';
+import { SupplierReturnWorkspaceScreen } from '../screens/SupplierReturnWorkspaceScreen';
+import { PickTicketHeaderScreen } from '../screens/PickTicketHeaderScreen';
+import { PickTicketWorkspaceScreen } from '../screens/PickTicketWorkspaceScreen';
+import { MasterCatalogEditScreen } from '../screens/MasterCatalogEditScreen';
 import type { MobilePortalBootstrap, RefreshProfileOptions, SignedInUser } from '../types/app';
 
 export type { ModulesStackParamList } from './moduleStackTypes';
@@ -40,6 +49,15 @@ function ModulesNavigator() {
       <ModulesStack.Screen name="DeliveryNoteHeader" component={DeliveryNoteHeaderScreen} />
       <ModulesStack.Screen name="DeliveryNoteLines" component={DeliveryNoteLinesScreen} />
       <ModulesStack.Screen name="LeaveRequestForm" component={LeaveRequestFormScreen} />
+      <ModulesStack.Screen name="PoGrnHeader" component={PoGrnHeaderScreen} />
+      <ModulesStack.Screen name="PoReceiptWorkspace" component={PoReceiptWorkspaceScreen} />
+      <ModulesStack.Screen name="NonPoGrnHeader" component={NonPoGrnHeaderScreen} />
+      <ModulesStack.Screen name="NonPoReceiptWorkspace" component={NonPoReceiptWorkspaceScreen} />
+      <ModulesStack.Screen name="SupplierReturnHeader" component={SupplierReturnHeaderScreen} />
+      <ModulesStack.Screen name="SupplierReturnWorkspace" component={SupplierReturnWorkspaceScreen} />
+      <ModulesStack.Screen name="PickTicketHeader" component={PickTicketHeaderScreen} />
+      <ModulesStack.Screen name="PickTicketWorkspace" component={PickTicketWorkspaceScreen} />
+      <ModulesStack.Screen name="MasterCatalogEdit" component={MasterCatalogEditScreen} />
       <ModulesStack.Screen name="Approvals" component={ApprovalsScreen} />
     </ModulesStack.Navigator>
   );

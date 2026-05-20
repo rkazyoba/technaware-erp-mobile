@@ -652,6 +652,22 @@ export function ModuleLegacyPanel() {
                     <Text style={styles.meta}>Status: {requisitionDetail.status_label}</Text>
                     <Text style={styles.meta}>Requested: {requisitionDetail.requested_date ?? '—'}</Text>
                     <Text style={styles.meta}>Comment: {requisitionDetail.approval_comment ?? '—'}</Text>
+                    {requisitionDetail.sourcing?.active_rfq ? (
+                      <Text style={styles.meta}>
+                        RFQ: {requisitionDetail.sourcing.active_rfq.rfq_no} · {requisitionDetail.sourcing.active_rfq.status_label}
+                      </Text>
+                    ) : null}
+                    {requisitionDetail.sourcing?.awarded_quotation ? (
+                      <Text style={styles.meta}>
+                        Awarded: {requisitionDetail.sourcing.awarded_quotation.supplier} ·{' '}
+                        {requisitionDetail.sourcing.awarded_quotation.total.toFixed(2)}
+                      </Text>
+                    ) : null}
+                    {requisitionDetail.sourcing && (requisitionDetail.sourcing.quotations?.length ?? 0) > 0 ? (
+                      <Text style={styles.meta}>
+                        {requisitionDetail.sourcing.quotations.length} supplier quotation(s) on file
+                      </Text>
+                    ) : null}
                     <Text style={styles.approvalsTitle}>Lines</Text>
                     {requisitionDetail.lines.length === 0 ? (
                       <Text style={styles.emptyStateText}>No line items.</Text>

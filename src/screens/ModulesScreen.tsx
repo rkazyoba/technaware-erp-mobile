@@ -7,6 +7,7 @@ import { Text, TextInput } from '../components/AppTypography';
 import { colors } from '../constants/colors';
 import { outfit } from '../constants/typography';
 import { CATEGORY_LABELS, colorFamilyForSurfaceId, moduleColorStyles, moduleIconForSurfaceId } from '../constants/modulePresentation';
+import { PortalHeaderActions } from '../components/PortalHeaderActions';
 import { TopBar, TopBarIconButton } from '../components/TopBar';
 import { navigateToPayslipTab } from '../navigation/navigateToPayslipTab';
 import { useStaffPortal } from '../context/StaffPortalContext';
@@ -134,8 +135,8 @@ export function ModulesScreen() {
       <TopBar
         title="Modules"
         right={
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TopBarIconButton name="person-circle-outline" onPress={() => navigation.navigate('Profile')} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <PortalHeaderActions />
             <TopBarIconButton name={view === 'grid' ? 'list-outline' : 'grid-outline'} onPress={() => void toggleView()} />
             <TopBarIconButton name="search-outline" onPress={() => {}} />
           </View>

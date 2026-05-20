@@ -59,10 +59,15 @@ export type ApprovalDetail = {
   approval_comment?: string | null;
   requested_date?: string | null;
   priority?: string;
+  prepared_date?: string | null;
+  despatch_date?: string | null;
+  order_no?: string;
+  customer_name?: string;
   lines: Array<{
     id: string;
     category: string;
     item: string;
+    product_code?: string;
     quantity: number;
     unit: string;
   }>;
@@ -189,6 +194,38 @@ export type RequisitionListItem = {
   store: string;
 };
 
+export type RequisitionSourcingSnapshot = {
+  active_rfq: {
+    id: string;
+    rfq_no: string;
+    status: string;
+    status_label: string;
+    sent_at?: string | null;
+  } | null;
+  rfqs: Array<{
+    id: string;
+    rfq_no: string;
+    status: string;
+    status_label: string;
+    sent_at?: string | null;
+    is_active: boolean;
+  }>;
+  quotations: Array<{
+    id: string;
+    rfq_no: string;
+    supplier: string;
+    quotation_ref: string;
+    status: string;
+    status_label: string;
+    total: number;
+  }>;
+  awarded_quotation: {
+    supplier: string;
+    quotation_ref: string;
+    total: number;
+  } | null;
+};
+
 export type RequisitionDetail = RequisitionListItem & {
   approval_comment?: string | null;
   lines: Array<{
@@ -198,6 +235,8 @@ export type RequisitionDetail = RequisitionListItem & {
     quantity: number;
     unit: string;
   }>;
+  /** Present when procurement RFQ tables exist (read-only). */
+  sourcing?: RequisitionSourcingSnapshot;
 };
 
 export type PurchaseOrderListItem = {
@@ -211,6 +250,79 @@ export type PurchaseOrderListItem = {
   order_date?: string | null;
   total_incl_vat: number | null;
   total_display: number | null;
+};
+
+export type PurchaseRfqListItem = {
+  id: string;
+  ref: string;
+  status: string;
+  status_label: string;
+  sent_at?: string | null;
+  requisition_ref: string;
+  requisition_id: string;
+  description: string;
+  site: string;
+  store: string;
+  awarded_supplier: string;
+  quotation_count: number;
+};
+
+export type PurchaseRfqDetail = PurchaseRfqListItem & {
+  requisition_description: string;
+  lines: Array<{
+    id: string;
+    item: string;
+    quantity: number;
+    unit: string;
+    note?: string;
+  }>;
+  invited_suppliers: Array<{
+    id: string;
+    supplier: string;
+    email: string;
+    status: string;
+  }>;
+  quotations: Array<{
+    id: string;
+    supplier: string;
+    quotation_ref: string;
+    status: string;
+    status_label: string;
+    total: number;
+  }>;
+  awarded_quotation: {
+    id: string;
+    supplier: string;
+    quotation_ref: string;
+    total: number;
+  } | null;
+};
+
+export type SupplierQuotationListItem = {
+  id: string;
+  ref: string;
+  status: string;
+  status_label: string;
+  supplier_name: string;
+  rfq_no: string;
+  rfq_id: string;
+  quotation_date?: string | null;
+  total: number;
+};
+
+export type SupplierQuotationDetail = SupplierQuotationListItem & {
+  requisition_ref: string;
+  valid_until?: string | null;
+  subtotal: number;
+  lines: Array<{
+    id: string;
+    item: string;
+    quantity: number;
+    unit: string;
+    unit_price?: number | null;
+    line_total?: number | null;
+    note?: string;
+  }>;
 };
 
 export type PurchaseOrderDetail = PurchaseOrderListItem & {
@@ -423,24 +535,80 @@ export type LogisticsDocListItem = {
   context?: string;
   /** Present on kitchen/store movement rows when serializer includes it. */
   total_amount?: number;
+  /** Delivery note detail (mobile workspace). */
+  prepared_date?: string | null;
+  despatch_date?: string | null;
+  order_no?: string;
+  customer_name?: string;
+  customer_code?: string;
+  prepared_by_name?: string;
+  supplier_id?: string;
+  site_id?: string;
+  store_id?: string;
+  delivery_note?: string;
+  supplier_name?: string;
+  site_name?: string;
+  store_name?: string;
+  order_id?: string;
+  department_id?: string;
+  department_name?: string;
+  non_po_id?: string;
+  order_type?: string;
 };
 
 export type LogisticsDocLine = {
   id: string;
   item: string;
+  product_code?: string;
+  received_item?: string;
+  ordered_item?: string;
+  category_id?: string;
+  unit_id?: string;
+  ordered_qty?: number;
   quantity: number;
   unit: string;
+  category?: string;
   note?: string;
+  unit_price?: number | null;
+  line_amount?: number | null;
+  unit_price_reporting?: number | null;
+  line_amount_reporting?: number | null;
+  pax?: number | null;
+  expiration_allocated_qty?: number | null;
+  expiration_remaining_qty?: number | null;
+  expiration_complete?: boolean | null;
+  returned_item?: string;
+  returned_qty?: number;
+  return_reason?: string | null;
+  ordered_price?: number | null;
+  available_qty?: number | null;
+  part_in_store_id?: string;
+  quantity_requested?: number;
+  quantity_issued?: number;
+  quantity_finalized?: number;
+};
+
+export type GrnExpirationSummary = {
+  received_qty: number;
+  allocated_qty: number;
+  remaining_qty: number;
+  complete: boolean;
 };
 
 export type LogisticsDocDetail = LogisticsDocListItem & {
   lines: LogisticsDocLine[];
+  total_amount?: number | null;
+  total_amount_reporting?: number | null;
+  base_currency?: string | null;
+  reporting_currency?: string | null;
+  expiration_summary?: GrnExpirationSummary;
 };
 
 export type StockReportStoreItem = {
   id: string;
   name: string;
   site: string;
+  site_id?: string;
 };
 
 export type StockReportLine = {
@@ -452,8 +620,10 @@ export type StockReportLine = {
   max_qty: number | null;
   status: string;
   category: string;
+  category_id?: string;
   supplier: string;
   unit: string;
+  unit_id?: string;
 };
 
 export type AttendanceRow = {
@@ -583,6 +753,8 @@ function firstErrorLine(errors?: Record<string, string[]>): string | undefined {
 type ApiRequestInit = RequestInit & {
   /** Do not run the global 401 handler (e.g. while revoking the token on logout). */
   skipSessionInvalid?: boolean;
+  /** Override default timeout (ms). Approval POSTs may run stock/GL side-effects. */
+  timeoutMs?: number;
 };
 
 async function request<T>(path: string, init?: ApiRequestInit): Promise<ApiEnvelope<T>> {
@@ -592,8 +764,9 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<ApiEnvel
     );
   }
 
+  const timeoutMs = init?.timeoutMs ?? REQUEST_TIMEOUT_MS;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   const { headers: rawHeaders, signal: _ignoreSignal, ...restInit } = init ?? {};
   const merged = new Headers({
@@ -637,9 +810,12 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<ApiEnvel
 
     if (!response.ok) {
       const detail = firstErrorLine(payload?.errors);
-      throw new Error(
-        sanitizeClientErrorMessage(payload?.message ?? detail ?? `Request failed (${response.status}).`),
-      );
+      const rawMessage = payload?.message ?? detail ?? `Request failed (${response.status}).`;
+      const friendly429 =
+        response.status === 429
+          ? 'Too many requests. Wait about a minute, then try again.'
+          : sanitizeClientErrorMessage(rawMessage);
+      throw new Error(friendly429);
     }
 
     if (!payload) {
@@ -657,7 +833,7 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<ApiEnvel
 
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(
-        `Request timed out after ${REQUEST_TIMEOUT_MS / 1000}s. The app could not reach ${API_BASE_URL}.${unreachableBackendHint()}`
+        `Request timed out after ${timeoutMs / 1000}s waiting for ${API_BASE_URL}.${unreachableBackendHint()}`,
       );
     }
 
@@ -735,12 +911,15 @@ export function getApprovals(token: string, page = 1, perPage = 25, kind?: strin
   if (k) {
     qs.set('kind', k);
   }
-  return request<{ items: ApprovalItem[]; pagination: PaginationMeta }>(`/approvals?${qs.toString()}`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
+  return request<{ items: ApprovalItem[]; pagination: PaginationMeta; summary?: ApprovalsSummary }>(
+    `/approvals?${qs.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     },
-  });
+  );
 }
 
 export function getApprovalsSummary(token: string) {
@@ -749,6 +928,8 @@ export function getApprovalsSummary(token: string) {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
+
+const APPROVAL_ACTION_TIMEOUT_MS = 90_000;
 
 export function approveItem(token: string, id: string, comment?: string) {
   const enc = encodeURIComponent(id);
@@ -760,6 +941,7 @@ export function approveItem(token: string, id: string, comment?: string) {
     body: JSON.stringify({
       comment: comment?.trim() ? comment.trim() : undefined,
     }),
+    timeoutMs: APPROVAL_ACTION_TIMEOUT_MS,
   });
 }
 
@@ -783,6 +965,7 @@ export function rejectItem(token: string, id: string, comment?: string) {
     body: JSON.stringify({
       comment: comment?.trim() ? comment.trim() : undefined,
     }),
+    timeoutMs: APPROVAL_ACTION_TIMEOUT_MS,
   });
 }
 
@@ -949,6 +1132,413 @@ export function getSupplierDetail(token: string, id: string) {
   });
 }
 
+export function createSupplier(token: string, body: Record<string, unknown>) {
+  return request<SupplierDetail>('/suppliers', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateSupplier(token: string, id: string, body: Record<string, unknown>) {
+  return request<SupplierDetail>(`/suppliers/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function createUnit(token: string, body: Record<string, unknown>) {
+  return request<UnitDetail>('/master-data/units', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateUnit(token: string, id: string, body: Record<string, unknown>) {
+  return request<UnitDetail>(`/master-data/units/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function createCategory(token: string, body: Record<string, unknown>) {
+  return request<CategoryDetail>('/master-data/categories', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateCategory(token: string, id: string, body: Record<string, unknown>) {
+  return request<CategoryDetail>(`/master-data/categories/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function createPart(token: string, body: Record<string, unknown>) {
+  return request<{ id: string; code: string; description: string; status: string }>('/parts', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updatePart(token: string, id: string, body: Record<string, unknown>) {
+  return request<{ id: string; code: string; description: string; status: string }>(`/parts/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export type GrnReceivingLocation = {
+  site_id: string;
+  store_id: string;
+  site_name: string;
+  store_name: string;
+};
+
+export type GrnEligibleOrder = {
+  id: string;
+  ref: string;
+  description?: string;
+  supplier_name: string;
+  supplier_id: string;
+  status: string;
+  site_id?: string;
+  store_id?: string;
+  site_name?: string;
+  store_name?: string;
+  receiving_location_count?: number;
+};
+
+export function getGrnEligiblePurchaseOrders(token: string, siteId?: string, storeId?: string) {
+  const qs = new URLSearchParams();
+  if (siteId) qs.set('site_id', siteId);
+  if (storeId) qs.set('store_id', storeId);
+  const q = qs.toString();
+  return request<{ items: GrnEligibleOrder[] }>(`/inventory/po-receipts/eligible-orders${q ? `?${q}` : ''}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getPoReceiptOrderReceivingLocations(token: string, orderId: string) {
+  return request<{ locations: GrnReceivingLocation[] }>(
+    `/inventory/po-receipts/orders/${encodeURIComponent(orderId)}/receiving-locations`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function postPoReceiptHeader(token: string, body: Record<string, unknown>) {
+  return request<{ id: string; ref: string }>('/inventory/po-receipts/header', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function putPoReceiptHeader(token: string, receiptId: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(`/inventory/po-receipts/${encodeURIComponent(receiptId)}/header`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function postPoReceiptLine(token: string, receiptId: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(`/inventory/po-receipts/${encodeURIComponent(receiptId)}/lines`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function putPoReceiptLine(token: string, receiptId: string, lineId: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(
+    `/inventory/po-receipts/${encodeURIComponent(receiptId)}/lines/${encodeURIComponent(lineId)}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function deletePoReceiptLine(token: string, receiptId: string, lineId: string) {
+  return request<null>(
+    `/inventory/po-receipts/${encodeURIComponent(receiptId)}/lines/${encodeURIComponent(lineId)}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export type PoOpenOrderLine = {
+  category_id: string;
+  category_name: string;
+  purchased_item: string;
+  description: string;
+  unit_id: string;
+  unit_name: string;
+  open_qty: number;
+  ordered_qty: number;
+  unit_price: number;
+};
+
+export function getPoReceiptOpenOrderLines(token: string, orderId: string) {
+  return request<{ items: PoOpenOrderLine[] }>(
+    `/inventory/po-receipts/orders/${encodeURIComponent(orderId)}/open-lines`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export type NonPoLineCategory = {
+  id: string;
+  name: string;
+};
+
+export type NonPoLineStoreItem = {
+  id: string;
+  code: string;
+  description: string;
+  category_id: string;
+  unit_id: string;
+  unit: string;
+  quantity: number;
+};
+
+export function getNonPoReceiptLineCategories(token: string) {
+  return request<{ items: NonPoLineCategory[] }>('/inventory/non-po-receipts/line-categories', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getNonPoReceiptLineStoreItems(
+  token: string,
+  storeId: string,
+  categoryId: string,
+  q = '',
+) {
+  const qs = new URLSearchParams({
+    store_id: storeId,
+    category_id: categoryId,
+  });
+  const t = q.trim();
+  if (t) {
+    qs.set('q', t);
+  }
+  return request<{ items: NonPoLineStoreItem[] }>(`/inventory/non-po-receipts/line-store-items?${qs.toString()}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function postNonPoReceiptHeader(token: string, body: Record<string, unknown>) {
+  return request<{ id: string; ref: string }>('/inventory/non-po-receipts/header', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function putNonPoReceiptHeader(token: string, receiptId: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(`/inventory/non-po-receipts/${encodeURIComponent(receiptId)}/header`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function postNonPoReceiptLine(token: string, receiptId: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(`/inventory/non-po-receipts/${encodeURIComponent(receiptId)}/lines`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function putNonPoReceiptLine(token: string, receiptId: string, lineId: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(
+    `/inventory/non-po-receipts/${encodeURIComponent(receiptId)}/lines/${encodeURIComponent(lineId)}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function deleteNonPoReceiptLine(token: string, receiptId: string, lineId: string) {
+  return request<null>(
+    `/inventory/non-po-receipts/${encodeURIComponent(receiptId)}/lines/${encodeURIComponent(lineId)}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export type PickTicketLineCategory = NonPoLineCategory;
+export type PickTicketLineStoreItem = NonPoLineStoreItem;
+export type SupplierReturnLineCategory = NonPoLineCategory;
+export type SupplierReturnLineStoreItem = NonPoLineStoreItem & { available_qty?: number };
+
+export function getPickTicketLineCategories(token: string) {
+  return request<{ items: PickTicketLineCategory[] }>('/inventory/pick-tickets/line-categories', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getPickTicketLineStoreItems(token: string, pickTicketId: string, categoryId: string, q = '') {
+  const qs = new URLSearchParams({ category_id: categoryId });
+  const t = q.trim();
+  if (t) {
+    qs.set('q', t);
+  }
+  return request<{ items: PickTicketLineStoreItem[] }>(
+    `/inventory/pick-tickets/${encodeURIComponent(pickTicketId)}/line-store-items?${qs.toString()}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function postPickTicketHeader(token: string, body: Record<string, unknown>) {
+  return request<{ id: string; ref: string }>('/inventory/pick-tickets/header', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function putPickTicketHeader(token: string, pickTicketId: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(`/inventory/pick-tickets/${encodeURIComponent(pickTicketId)}/header`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function postPickTicketLine(token: string, pickTicketId: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(`/inventory/pick-tickets/${encodeURIComponent(pickTicketId)}/lines`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function putPickTicketLine(token: string, pickTicketId: string, lineId: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(
+    `/inventory/pick-tickets/${encodeURIComponent(pickTicketId)}/lines/${encodeURIComponent(lineId)}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function deletePickTicketLine(token: string, pickTicketId: string, lineId: string) {
+  return request<null>(
+    `/inventory/pick-tickets/${encodeURIComponent(pickTicketId)}/lines/${encodeURIComponent(lineId)}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function getSupplierReturnLineCategories(token: string) {
+  return request<{ items: SupplierReturnLineCategory[] }>('/inventory/supplier-returns/line-categories', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getSupplierReturnLineStoreItems(token: string, storeId: string, categoryId: string, q = '') {
+  const qs = new URLSearchParams({
+    store_id: storeId,
+    category_id: categoryId,
+  });
+  const t = q.trim();
+  if (t) {
+    qs.set('q', t);
+  }
+  return request<{ items: SupplierReturnLineStoreItem[] }>(
+    `/inventory/supplier-returns/line-store-items?${qs.toString()}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function postSupplierReturnHeader(token: string, body: Record<string, unknown>) {
+  return request<{ id: string; ref: string }>('/inventory/supplier-returns/header', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function putSupplierReturnHeader(token: string, supplierReturnId: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(`/inventory/supplier-returns/${encodeURIComponent(supplierReturnId)}/header`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function postSupplierReturnLine(token: string, supplierReturnId: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(`/inventory/supplier-returns/${encodeURIComponent(supplierReturnId)}/lines`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function putSupplierReturnLine(
+  token: string,
+  supplierReturnId: string,
+  lineId: string,
+  body: Record<string, unknown>,
+) {
+  return request<{ id: string }>(
+    `/inventory/supplier-returns/${encodeURIComponent(supplierReturnId)}/lines/${encodeURIComponent(lineId)}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function deleteSupplierReturnLine(token: string, supplierReturnId: string, lineId: string) {
+  return request<null>(
+    `/inventory/supplier-returns/${encodeURIComponent(supplierReturnId)}/lines/${encodeURIComponent(lineId)}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
 function masterDataQs(page: number, perPage: number, q: string): string {
   const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
   const t = q.trim();
@@ -1077,6 +1667,44 @@ export function getPurchaseOrders(token: string, page = 1, perPage = 10) {
       headers: { Authorization: `Bearer ${token}` },
     }
   );
+}
+
+export function getPurchaseRfqs(token: string, page = 1, perPage = 15, q = '') {
+  const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  if (q.trim()) qs.set('q', q.trim());
+  return request<{ items: PurchaseRfqListItem[]; pagination: PaginationMeta }>(
+    `/procurement/purchase-rfqs?${qs.toString()}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function getPurchaseRfqDetail(token: string, id: string) {
+  return request<PurchaseRfqDetail>(`/procurement/purchase-rfqs/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getSupplierQuotations(token: string, page = 1, perPage = 15, q = '') {
+  const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  if (q.trim()) qs.set('q', q.trim());
+  return request<{ items: SupplierQuotationListItem[]; pagination: PaginationMeta }>(
+    `/procurement/supplier-quotations?${qs.toString()}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function getSupplierQuotationDetail(token: string, id: string) {
+  return request<SupplierQuotationDetail>(`/procurement/supplier-quotations/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
 }
 
 export function getPurchaseOrderDetail(token: string, id: string) {
@@ -1276,6 +1904,30 @@ export function postDeliveryNoteSubmitForApproval(token: string, deliveryNoteId:
 
 export function getStockReportStores(token: string) {
   return request<{ items: StockReportStoreItem[] }>('/inventory/stock-report/stores', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export type CatalogUnitPrice = {
+  price: number;
+  currency: string | null;
+  catalog_id: string | null;
+  end_date: string | null;
+  status: string | null;
+  part_id: string;
+};
+
+export function getCatalogUnitPrice(
+  token: string,
+  partInStoreId: string,
+  asOf?: string,
+) {
+  const qs = new URLSearchParams({ part_in_store_id: partInStoreId });
+  if (asOf?.trim()) {
+    qs.set('as_of', asOf.trim());
+  }
+  return request<CatalogUnitPrice>(`/inventory/catalog-unit-price?${qs.toString()}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });

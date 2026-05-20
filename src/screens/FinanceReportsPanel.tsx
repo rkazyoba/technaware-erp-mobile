@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Linking, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { Text } from '../components/AppTypography';
+import { ReportWebExportPanel } from '../components/reports/ReportWebExportPanel';
 import { SimpleBarChart } from '../components/reports/SimpleBarChart';
 import {
   type BalanceSheetReport,
@@ -26,7 +27,7 @@ import { outfit } from '../constants/typography';
 import { useStaffPortal } from '../context/StaffPortalContext';
 import { styles } from '../styles/appStyles';
 import type { FinanceReportMobileModule } from '../utils/financeReportPortal';
-import { webErpUrl } from '../utils/webErpUrls';
+import { reportWebPdfPath, type ReportPdfBuildParams } from '../utils/reportWebPdfUrls';
 
 function fmtMoney(n: number | null | undefined): string {
   if (n == null || Number.isNaN(Number(n))) return '—';
@@ -139,24 +140,26 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
   );
 
   const webPathTrimmed = webPath?.trim() ?? '';
-  const webFooter =
-    webPathTrimmed !== '' ? (
-      <Pressable
-        onPress={() => void Linking.openURL(webErpUrl(webPathTrimmed))}
-        style={{
-          marginTop: 20,
-          paddingVertical: 14,
-          borderRadius: 12,
-          backgroundColor: colors.primaryNavy,
-          alignItems: 'center',
-        }}
-      >
-        <Text style={{ ...outfit('medium', 14), color: '#fff' }}>Open full report in web ERP</Text>
-        <Text style={{ ...outfit('regular', 11), color: 'rgba(255,255,255,0.75)', marginTop: 6, textAlign: 'center' }}>
-          Tables, PDF export, and filters
-        </Text>
-      </Pressable>
-    ) : null;
+
+  const pdfBuildParams = useMemo((): ReportPdfBuildParams => {
+    const periodPreset = (tb?.preset ?? pnl?.preset ?? cf?.preset ?? preset) as ReportPdfBuildParams['preset'];
+    switch (moduleRoute) {
+      case 'Report trial balance':
+        return { preset: periodPreset, from: tb?.from, to: tb?.to };
+      case 'Report profit and loss':
+        return { preset: periodPreset, from: pnl?.from, to: pnl?.to };
+      case 'Report balance sheet':
+        return { asOf: bs?.as_of };
+      case 'Report cash flow':
+        return { preset: periodPreset, from: cf?.from, to: cf?.to };
+      case 'Daily invoice report':
+        return { from: daily?.from, to: daily?.to };
+      default:
+        return { preset: periodPreset };
+    }
+  }, [moduleRoute, preset, tb, pnl, bs, cf, daily]);
+
+  const pdfPath = useMemo(() => reportWebPdfPath(moduleRoute, pdfBuildParams), [moduleRoute, pdfBuildParams]);
 
   let body: ReactNode = null;
 
@@ -194,7 +197,7 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
         </View>
         <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, marginTop: 22 }}>By due month (amount)</Text>
         <View style={{ marginTop: 10 }}>
-          <SimpleBarChart points={chartPts} barColor={colors.accentTeal} />
+          <SimpleBarChart points={chartPts} barColor={colors.accentTeal} valueMode="money" />
         </View>
         <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, marginTop: 22 }}>Aging</Text>
         {overdue.aging.buckets.map((b) => (
@@ -247,7 +250,7 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
         </View>
         <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, marginTop: 22 }}>Invoiced by day</Text>
         <View style={{ marginTop: 10 }}>
-          <SimpleBarChart points={chartPts} />
+          <SimpleBarChart points={chartPts} valueMode="money" />
         </View>
       </>
     );
@@ -331,7 +334,7 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
           <>
             <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, marginTop: 22 }}>Net profit trend</Text>
             <View style={{ marginTop: 10 }}>
-              <SimpleBarChart points={trendPts} barColor={colors.accentTeal} />
+              <SimpleBarChart points={trendPts} barColor={colors.accentTeal} valueMode="money" />
             </View>
           </>
         ) : null}
@@ -409,7 +412,7 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
         </View>
         <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, marginTop: 22 }}>By section</Text>
         <View style={{ marginTop: 10 }}>
-          <SimpleBarChart points={cfPts} barColor={colors.accentTeal} />
+          <SimpleBarChart points={cfPts} barColor={colors.accentTeal} valueMode="money" />
         </View>
         <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, marginTop: 22 }}>Operating</Text>
         {cf.sections.operating.map((line, i) => (
@@ -452,7 +455,7 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
         </View>
         <Text style={{ ...outfit('medium', 13), color: colors.textPrimary }}>WHT by month</Text>
         <View style={{ marginTop: 10 }}>
-          <SimpleBarChart points={chartPts} barColor={colors.accentTeal} />
+          <SimpleBarChart points={chartPts} barColor={colors.accentTeal} valueMode="money" />
         </View>
         {wht.rows.map((r) => (
           <View key={r.period_ym} style={[styles.approvalCard, { marginTop: 10 }]}>
@@ -480,7 +483,7 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
       </Text>
       {showPreset ? presetChips : null}
       {body}
-      {webFooter}
+      <ReportWebExportPanel webPath={webPathTrimmed || undefined} pdfPathOrUrl={pdfPath ?? undefined} />
     </ScrollView>
   );
 }

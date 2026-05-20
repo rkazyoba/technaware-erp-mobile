@@ -25,7 +25,10 @@ export function ModuleWorkspaceScreen() {
 
   const portalWebPath = useMemo(() => webPathForPortalSurface(routeModule, portal), [routeModule, portal]);
   const showPortalWebPanel =
-    Boolean(portalWebPath) && !isAccountingApiListModule(routeModule) && !isFinanceReportMobileModule(routeModule);
+    Boolean(portalWebPath) &&
+    !isAccountingApiListModule(routeModule) &&
+    !isFinanceReportMobileModule(routeModule) &&
+    routeModule !== 'Stock by store';
   const portalSurfaceRow = useMemo(
     () => portal?.surfaces?.find((s) => s.visible && s.route === routeModule),
     [portal?.surfaces, routeModule],

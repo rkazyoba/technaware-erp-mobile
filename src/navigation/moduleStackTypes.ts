@@ -29,6 +29,8 @@ export type RecordDetailParams = {
     | 'crm_contract'
     | 'crm_quotation'
     | 'purchase_order'
+    | 'purchase_rfq'
+    | 'supplier_quotation'
     | 'supplier'
     | 'master_unit'
     | 'master_category'
@@ -77,8 +79,23 @@ export type ModulesStackParamList = {
     issueId: string;
     /** Store master name: issuing store (kitchen→store) or receiving store (store→kitchen) — used for stock line picker. */
     stockStoreName: string;
+    readOnly?: boolean;
+    initialTab?: 'overview' | 'lines';
   };
   DeliveryNoteHeader: undefined;
   DeliveryNoteLines: { deliveryNoteId: string };
+  PoGrnHeader: undefined;
+  PoReceiptWorkspace: { receiptId: string; initialTab?: 'overview' | 'lines' | 'document' };
+  NonPoGrnHeader: undefined;
+  NonPoReceiptWorkspace: { receiptId: string; initialTab?: 'overview' | 'lines' | 'document' };
+  SupplierReturnHeader: undefined;
+  SupplierReturnWorkspace: { supplierReturnId: string; initialTab?: 'overview' | 'lines' | 'document' };
+  PickTicketHeader: undefined;
+  PickTicketWorkspace: { pickTicketId: string; initialTab?: 'overview' | 'lines' | 'document' };
+  MasterCatalogEdit: {
+    kind: 'supplier' | 'unit' | 'category';
+    moduleRoute: string;
+    recordId?: string;
+  };
   LeaveRequestForm: undefined;
 };

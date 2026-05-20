@@ -110,7 +110,11 @@ export function OperationalReportsPanel({ moduleRoute }: Props) {
           </View>
           <View style={{ backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 0.5, borderColor: colors.borderSubtle }}>
             <Text style={{ ...outfit('medium', 12), color: colors.textMuted, marginBottom: 12 }}>Monthly quantity issued</Text>
-            <SimpleBarChart points={consumptionChart} barColor={colors.primaryNavy} />
+            <SimpleBarChart
+              points={consumptionChart}
+              barColor={colors.primaryNavy}
+              legend={[{ label: 'Quantity issued (store → kitchen)', color: colors.primaryNavy }]}
+            />
           </View>
         </>
       ) : null}
@@ -131,7 +135,10 @@ export function OperationalReportsPanel({ moduleRoute }: Props) {
           </View>
           <View style={{ backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 0.5, borderColor: colors.borderSubtle, marginBottom: 16 }}>
             <Text style={{ ...outfit('medium', 12), color: colors.textMuted, marginBottom: 12 }}>Total movements per month</Text>
-            <SimpleBarChart points={movementChart} />
+            <SimpleBarChart
+              points={movementChart}
+              legend={[{ label: 'Total movement documents (K↔S)', color: colors.accentTeal }]}
+            />
           </View>
           <View style={{ backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 0.5, borderColor: colors.borderSubtle }}>
             <Text style={{ ...outfit('medium', 12), color: colors.textMuted, marginBottom: 10 }}>Monthly breakdown</Text>

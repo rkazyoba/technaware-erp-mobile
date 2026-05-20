@@ -64,8 +64,12 @@ import {
   getProformaInvoices,
   getPurchaseOrderDetail,
   getPurchaseOrders,
+  getPurchaseRfqDetail,
+  getPurchaseRfqs,
   getRequisitionDetail,
   getRequisitions,
+  getSupplierQuotationDetail,
+  getSupplierQuotations,
   getSupplierInvoiceDetail,
   getSupplierInvoices,
   getStockReportLines,
@@ -119,8 +123,12 @@ import {
   type PayslipListItem,
   type PurchaseOrderDetail,
   type PurchaseOrderListItem,
+  type PurchaseRfqDetail,
+  type PurchaseRfqListItem,
   type RequisitionDetail,
   type RequisitionListItem,
+  type SupplierQuotationDetail,
+  type SupplierQuotationListItem,
   type ProformaInvoiceDetail,
   type ProformaInvoiceListItem,
   type StockReportLine,
@@ -150,6 +158,7 @@ import { AppTab, MobilePortalBootstrap, RefreshProfileOptions, SignedInUser } fr
 import { webPathForPortalSurface } from '../utils/portalWebSurfaces';
 import { isAccountingApiListModule, type AccountingApiListModule } from '../utils/accountingPortal';
 import { isFinanceReportMobileModule } from '../utils/financeReportPortal';
+import { canCrud, canCrudOrLegacy, LOGISTICS_LEGACY } from '../utils/crudPermissions';
 import { friendlyModuleLoadError } from '../utils/employeeProfile';
 
 const LOGISTICS_DOC_ROUTES: Record<string, string> = {
@@ -324,19 +333,85 @@ export function useStaffPortalModel({
     );
   }, [portal]);
 
+  const canViewMobilePurchaseRfqs = useMemo(() => {
+    if (!portal?.permissions?.length) {
+      return true;
+    }
+    if (portal.has_wildcard) {
+      return true;
+    }
+    return portal.permissions.some(
+      (x) => x === 'erp.crud.purchase_rfq.view' || x === 'erp.nav.procurement' || x.startsWith('erp.crud.purchase_rfq.')
+    );
+  }, [portal]);
+
+  const canViewMobileSupplierQuotations = useMemo(() => {
+    if (!portal?.permissions?.length) {
+      return true;
+    }
+    if (portal.has_wildcard) {
+      return true;
+    }
+    return portal.permissions.some(
+      (x) =>
+        x === 'erp.crud.supplier_quotations.view' ||
+        x === 'erp.nav.procurement' ||
+        x.startsWith('erp.crud.supplier_quotations.')
+    );
+  }, [portal]);
+
   const visibleStoreMovementKinds = useMemo(() => visibleStoreMovementKindsForPortal(portal), [portal]);
 
   const canCreateKitchenToStoreMovement = useMemo(
-    () => staffPortalHasPermission(portal, 'erp.user.kitchen_to_store'),
+    () => canCrudOrLegacy(portal, 'kitchen_to_store', 'create', LOGISTICS_LEGACY.kitchen_to_store),
     [portal],
   );
 
   const canCreateStoreToKitchenMovement = useMemo(
-    () => staffPortalHasPermission(portal, 'erp.user.store_to_kitchen'),
+    () => canCrudOrLegacy(portal, 'store_to_kitchen', 'create', LOGISTICS_LEGACY.store_to_kitchen),
     [portal],
   );
 
-  const canCreateDeliveryNote = useMemo(() => staffPortalHasPermission(portal, 'erp.user.delivery_notes'), [portal]);
+  const canCreateDeliveryNote = useMemo(
+    () => canCrudOrLegacy(portal, 'delivery_notes', 'create', LOGISTICS_LEGACY.delivery_notes),
+    [portal],
+  );
+
+  const canCreatePoReceipt = useMemo(
+    () => canCrudOrLegacy(portal, 'po_receipts', 'create', LOGISTICS_LEGACY.po_receipts),
+    [portal],
+  );
+
+  const canUpdatePoReceipt = useMemo(
+    () => canCrudOrLegacy(portal, 'po_receipts', 'update', LOGISTICS_LEGACY.po_receipts),
+    [portal],
+  );
+
+  const canCreateNonPoReceipt = useMemo(
+    () => canCrudOrLegacy(portal, 'non_po_receipts', 'create', LOGISTICS_LEGACY.non_po_receipts),
+    [portal],
+  );
+
+  const canCreateSupplierReturn = useMemo(
+    () => canCrudOrLegacy(portal, 'supplier_returns', 'create', LOGISTICS_LEGACY.supplier_returns),
+    [portal],
+  );
+
+  const canCreatePickTicket = useMemo(() => canCrud(portal, 'pick_tickets', 'create'), [portal]);
+
+  const canUpdateNonPoReceipt = useMemo(
+    () => canCrudOrLegacy(portal, 'non_po_receipts', 'update', LOGISTICS_LEGACY.non_po_receipts),
+    [portal],
+  );
+
+  const canCreateSupplier = useMemo(() => canCrud(portal, 'suppliers', 'create'), [portal]);
+  const canUpdateSupplier = useMemo(() => canCrud(portal, 'suppliers', 'update'), [portal]);
+  const canCreateUnit = useMemo(() => canCrud(portal, 'units', 'create'), [portal]);
+  const canUpdateUnit = useMemo(() => canCrud(portal, 'units', 'update'), [portal]);
+  const canCreateCategory = useMemo(() => canCrud(portal, 'categories', 'create'), [portal]);
+  const canUpdateCategory = useMemo(() => canCrud(portal, 'categories', 'update'), [portal]);
+  const canCreatePart = useMemo(() => canCrud(portal, 'parts', 'create'), [portal]);
+  const canUpdatePart = useMemo(() => canCrud(portal, 'parts', 'update'), [portal]);
 
   /** Operational (non–approval-only) access for inter-store native lists; mirrors POST guards when those endpoints exist. */
   const operationalInterStoreIssues = useMemo(
@@ -385,6 +460,18 @@ export function useStaffPortalModel({
   const [purchaseOrderPage, setPurchaseOrderPage] = useState(1);
   const [purchaseOrderHasMore, setPurchaseOrderHasMore] = useState(false);
   const [purchaseOrdersUpdatedAt, setPurchaseOrdersUpdatedAt] = useState<string | null>(null);
+
+  const [purchaseRfqItems, setPurchaseRfqItems] = useState<PurchaseRfqListItem[]>([]);
+  const [purchaseRfqDetail, setPurchaseRfqDetail] = useState<PurchaseRfqDetail | null>(null);
+  const [purchaseRfqPage, setPurchaseRfqPage] = useState(1);
+  const [purchaseRfqHasMore, setPurchaseRfqHasMore] = useState(false);
+  const [purchaseRfqsUpdatedAt, setPurchaseRfqsUpdatedAt] = useState<string | null>(null);
+
+  const [supplierQuotationItems, setSupplierQuotationItems] = useState<SupplierQuotationListItem[]>([]);
+  const [supplierQuotationDetail, setSupplierQuotationDetail] = useState<SupplierQuotationDetail | null>(null);
+  const [supplierQuotationPage, setSupplierQuotationPage] = useState(1);
+  const [supplierQuotationHasMore, setSupplierQuotationHasMore] = useState(false);
+  const [supplierQuotationsUpdatedAt, setSupplierQuotationsUpdatedAt] = useState<string | null>(null);
 
   // Finance (commercial)
   const [customerInvoiceItems, setCustomerInvoiceItems] = useState<CustomerInvoiceListItem[]>([]);
@@ -574,6 +661,7 @@ export function useStaffPortalModel({
   const stockLinesFetchSeqRef = useRef(0);
   const logisticsListFetchSeqRef = useRef(0);
   const logisticsDetailFetchSeqRef = useRef(0);
+  const lastApprovalDetailFetchRef = useRef<{ id: string; at: number } | null>(null);
   const prevSelectedModuleRef = useRef<string | null>(null);
   const prevModulesTabActiveRef = useRef(false);
 
@@ -655,10 +743,12 @@ export function useStaffPortalModel({
     setModuleLoading(true);
     setModuleError(null);
     try {
-      if (page === 1) {
+      const res = await getApprovals(token, page, 25, kindFilter);
+      if (page === 1 && res.data.summary) {
+        setApprovalSummary(res.data.summary);
+      } else if (page === 1) {
         await loadApprovalSummary({ force });
       }
-      const res = await getApprovals(token, page, 25, kindFilter);
       setApprovalItems((current) => (page === 1 ? res.data.items : [...current, ...res.data.items]));
       setApprovalPage(res.data.pagination.current_page);
       setApprovalHasMore(res.data.pagination.has_more);
@@ -766,6 +856,64 @@ export function useStaffPortalModel({
       setPurchaseOrderDetail(res.data);
     } catch (error) {
       setModuleError(error instanceof Error ? error.message : 'Failed to load purchase order.');
+    } finally {
+      setModuleLoading(false);
+    }
+  }, [token]);
+
+  const loadPurchaseRfqs = async (page = 1, q = '') => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getPurchaseRfqs(token, page, 15, q);
+      setPurchaseRfqItems((current) => (page === 1 ? res.data.items : [...current, ...res.data.items]));
+      setPurchaseRfqPage(res.data.pagination.current_page);
+      setPurchaseRfqHasMore(res.data.pagination.has_more);
+      setPurchaseRfqsUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(error instanceof Error ? error.message : 'Failed to load purchase RFQs.');
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadPurchaseRfqDetail = useCallback(async (id: string) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getPurchaseRfqDetail(token, id);
+      setPurchaseRfqDetail(res.data);
+    } catch (error) {
+      setModuleError(error instanceof Error ? error.message : 'Failed to load purchase RFQ.');
+    } finally {
+      setModuleLoading(false);
+    }
+  }, [token]);
+
+  const loadSupplierQuotations = async (page = 1, q = '') => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getSupplierQuotations(token, page, 15, q);
+      setSupplierQuotationItems((current) => (page === 1 ? res.data.items : [...current, ...res.data.items]));
+      setSupplierQuotationPage(res.data.pagination.current_page);
+      setSupplierQuotationHasMore(res.data.pagination.has_more);
+      setSupplierQuotationsUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(error instanceof Error ? error.message : 'Failed to load supplier quotations.');
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadSupplierQuotationDetail = useCallback(async (id: string) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getSupplierQuotationDetail(token, id);
+      setSupplierQuotationDetail(res.data);
+    } catch (error) {
+      setModuleError(error instanceof Error ? error.message : 'Failed to load supplier quotation.');
     } finally {
       setModuleLoading(false);
     }
@@ -1872,8 +2020,10 @@ export function useStaffPortalModel({
     }
   };
 
-  const setApprovalStatus = async (id: string, status: 'Approved' | 'Rejected') => {
-    setModuleLoading(true);
+  const setApprovalStatus = async (
+    id: string,
+    status: 'Approved' | 'Rejected',
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const note = approvalNotes[id]?.trim();
       if (status === 'Approved') {
@@ -1882,24 +2032,59 @@ export function useStaffPortalModel({
         await rejectItem(token, id, note);
       }
       setApprovalNotes((current) => ({ ...current, [id]: '' }));
-      await Promise.all([loadApprovals(1, { force: true }), loadApprovalSummary({ force: true })]);
+      const removed = approvalItems.find((item) => item.id === id);
+      setApprovalItems((current) => current.filter((item) => item.id !== id));
+      setApprovalListTotal((n) => Math.max(0, n - 1));
+      if (removed?.kind && approvalSummary) {
+        setApprovalSummary((prev) => {
+          if (!prev) {
+            return prev;
+          }
+          const modules = prev.modules
+            .map((m) => (m.kind === removed.kind ? { ...m, count: Math.max(0, m.count - 1) } : m))
+            .filter((m) => m.count > 0);
+          return { total: Math.max(0, prev.total - 1), modules };
+        });
+      }
+      void loadApprovals(1, { force: true }).catch(() => {
+        /* Inbox already updated optimistically; background sync can wait for pull-to-refresh. */
+      });
+      return { ok: true };
     } catch (error) {
-      setModuleError(error instanceof Error ? error.message : 'Failed to update approval.');
-    } finally {
-      setModuleLoading(false);
+      const message = error instanceof Error ? error.message : 'Failed to update approval.';
+      return { ok: false, error: message };
     }
   };
 
-  const loadApprovalDetail = useCallback(async (id: string) => {
+  const loadApprovalDetail = useCallback(async (id: string, opts?: { force?: boolean }) => {
+    const now = Date.now();
+    const last = lastApprovalDetailFetchRef.current;
+    if (!opts?.force && last?.id === id && now - last.at < 3000) {
+      return;
+    }
+    lastApprovalDetailFetchRef.current = { id, at: now };
     setModuleLoading(true);
     setModuleError(null);
     try {
       const res = await getApprovalDetail(token, id);
+      if (lastApprovalDetailFetchRef.current?.id !== id) {
+        return;
+      }
       setApprovalDetail(res.data);
     } catch (error) {
-      setModuleError(error instanceof Error ? error.message : 'Failed to load approval details.');
+      if (lastApprovalDetailFetchRef.current?.id !== id) {
+        return;
+      }
+      const message = error instanceof Error ? error.message : 'Failed to load approval details.';
+      setModuleError(
+        /too many attempts/i.test(message)
+          ? 'Too many requests. Wait about a minute, then tap Retry.'
+          : message,
+      );
     } finally {
-      setModuleLoading(false);
+      if (lastApprovalDetailFetchRef.current?.id === id) {
+        setModuleLoading(false);
+      }
     }
   }, [token]);
 
@@ -2035,6 +2220,18 @@ export function useStaffPortalModel({
         }
         return Promise.resolve();
       }
+      if (route === 'Purchase RFQs') {
+        if (canViewMobilePurchaseRfqs) {
+          return loadPurchaseRfqs(page, q ?? '');
+        }
+        return Promise.resolve();
+      }
+      if (route === 'Supplier quotations') {
+        if (canViewMobileSupplierQuotations) {
+          return loadSupplierQuotations(page, q ?? '');
+        }
+        return Promise.resolve();
+      }
       if (route === 'Customer invoices') {
         return loadCustomerInvoices(page, q);
       }
@@ -2113,12 +2310,16 @@ export function useStaffPortalModel({
       storeMovementKind,
       canViewMobileRequisitions,
       canViewMobilePurchaseOrders,
+      canViewMobilePurchaseRfqs,
+      canViewMobileSupplierQuotations,
       crmQuotationStatus,
       loadApprovals,
       loadNotifications,
       loadLeaveRequests,
       loadRequisitions,
       loadPurchaseOrders,
+      loadPurchaseRfqs,
+      loadSupplierQuotations,
       loadCustomerInvoices,
       loadProformaInvoices,
       loadPayments,
@@ -2376,6 +2577,20 @@ export function useStaffPortalModel({
     canCreateDeliveryNote,
     canCreateKitchenToStoreMovement,
     canCreateStoreToKitchenMovement,
+    canCreatePoReceipt,
+    canUpdatePoReceipt,
+    canCreateNonPoReceipt,
+    canUpdateNonPoReceipt,
+    canCreateSupplierReturn,
+    canCreatePickTicket,
+    canCreateSupplier,
+    canUpdateSupplier,
+    canCreateUnit,
+    canUpdateUnit,
+    canCreateCategory,
+    canUpdateCategory,
+    canCreatePart,
+    canUpdatePart,
     operationalInterStoreIssues,
     operationalInterStoreReceipts,
     canViewMobilePurchaseOrders,
@@ -2518,6 +2733,24 @@ export function useStaffPortalModel({
     purchaseOrderItems,
     purchaseOrderPage,
     purchaseOrdersUpdatedAt,
+    purchaseRfqDetail,
+    purchaseRfqHasMore,
+    purchaseRfqItems,
+    purchaseRfqPage,
+    purchaseRfqsUpdatedAt,
+    canViewMobilePurchaseRfqs,
+    canViewMobileSupplierQuotations,
+    loadPurchaseRfqDetail,
+    loadPurchaseRfqs,
+    loadSupplierQuotationDetail,
+    loadSupplierQuotations,
+    supplierQuotationDetail,
+    supplierQuotationHasMore,
+    supplierQuotationItems,
+    supplierQuotationPage,
+    supplierQuotationsUpdatedAt,
+    setPurchaseRfqDetail,
+    setSupplierQuotationDetail,
     prevSelectedModuleRef,
     quickActionItems,
     refreshing,

@@ -10,6 +10,7 @@ import { colors } from '../constants/colors';
 import { outfit } from '../constants/typography';
 import { useStaffPortal } from '../context/StaffPortalContext';
 import type { ModulesStackParamList } from '../navigation/moduleStackTypes';
+import { leaveProfileScreen } from '../navigation/navigateToProfile';
 import { resolveProfilePhotoUrl, resolveTenantLabels } from '../utils/profileDisplay';
 import { userHasEmployeeProfile } from '../utils/employeeProfile';
 import { webErpUrl } from '../utils/webErpUrls';
@@ -60,7 +61,7 @@ export function ProfileScreen() {
     <View style={{ flex: 1, backgroundColor: colors.pageBg }}>
       <View style={{ backgroundColor: colors.primaryNavy, paddingHorizontal: 12, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }}>
         <Pressable
-          onPress={() => navigation.goBack()}
+          onPress={() => leaveProfileScreen(navigation)}
           style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}
         >
           <Ionicons name="arrow-back" size={18} color="#fff" />

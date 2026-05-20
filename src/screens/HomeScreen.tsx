@@ -13,6 +13,7 @@ import { outfit } from '../constants/typography';
 import { useStaffPortal } from '../context/StaffPortalContext';
 import { isPortalModuleRouteAccessible } from '../utils/portalModuleAccess';
 import { navigateToPayslipTab } from '../navigation/navigateToPayslipTab';
+import { PortalHeaderActions } from '../components/PortalHeaderActions';
 import { staffPortalHasPermission } from '../utils/staffPortalPermissions';
 
 function greetingPrefix(): string {
@@ -50,8 +51,6 @@ export function HomeScreen() {
     approvalItems,
     refreshing,
     onPullRefresh,
-    notificationsShortcutVisible,
-    notificationUnreadCount,
   } = sp;
 
   useFocusEffect(
@@ -90,6 +89,20 @@ export function HomeScreen() {
 
   const onApprovalModulePress = (mod: ApprovalModuleScore) => {
     goApprovals(mod);
+  };
+
+  const openRecentInvoice = (id: string, invoiceNo: string) => {
+    setPortalActiveTab('modules');
+    setPortalSelectedModule('Customer invoices');
+    navigation.navigate('Modules', {
+      screen: 'RecordDetail',
+      params: {
+        moduleRoute: 'Customer invoices',
+        detailKind: 'finance_customer_invoice',
+        recordId: id,
+        titleHint: invoiceNo,
+      },
+    });
   };
   const supportOpen = mobileSummary?.open_support_tickets ?? null;
   const dnOpen = mobileSummary?.delivery_notes_open ?? null;
@@ -174,35 +187,7 @@ export function HomeScreen() {
             resizeMode="contain"
           />
         </View>
-        {notificationsShortcutVisible ? (
-          <Pressable
-            onPress={() => {
-              setPortalActiveTab('modules');
-              onOpenAction('Notifications');
-              navigation.navigate('Modules', { screen: 'ModuleList', params: { moduleRoute: 'Notifications' } });
-            }}
-            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Ionicons name="notifications-outline" size={20} color="#fff" />
-            {notificationUnreadCount > 0 ? (
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 5,
-                  right: 5,
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: colors.accentTeal,
-                  borderWidth: 1.5,
-                  borderColor: colors.primaryNavy,
-                }}
-              />
-            ) : null}
-          </Pressable>
-        ) : (
-          <View style={{ width: 36, height: 36 }} />
-        )}
+        <PortalHeaderActions />
       </View>
 
       <ScrollView
@@ -383,9 +368,10 @@ export function HomeScreen() {
               Recent invoices
             </Text>
             {recentInvoices.map((inv) => (
-              <View
+              <Pressable
                 key={inv.id}
-                style={{
+                onPress={() => openRecentInvoice(inv.id, inv.invoice_no || `#${inv.id}`)}
+                style={({ pressed }) => ({
                   marginHorizontal: 16,
                   marginBottom: 8,
                   backgroundColor: colors.surface,
@@ -393,7 +379,8 @@ export function HomeScreen() {
                   padding: 12,
                   borderWidth: 0.5,
                   borderColor: colors.borderSubtle,
-                }}
+                  opacity: pressed ? 0.88 : 1,
+                })}
               >
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <Text style={{ ...outfit('medium', 12), color: colors.linkBlue }}>{inv.invoice_no || `#${inv.id}`}</Text>
@@ -405,7 +392,7 @@ export function HomeScreen() {
                 <Text style={{ ...outfit('regular', 11), color: colors.textMuted, marginTop: 6 }}>
                   {inv.invoice_date ?? '—'} · {fmtMoney(inv.total_amount)}
                 </Text>
-              </View>
+              </Pressable>
             ))}
           </>
         ) : null}

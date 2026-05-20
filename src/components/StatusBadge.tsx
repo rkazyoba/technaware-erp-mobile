@@ -8,6 +8,8 @@ const VARIANT: Record<string, { bg: string; fg: string }> = {
   Rejected: { bg: colors.statusRejectedBg, fg: colors.statusRejectedText },
   Draft: { bg: colors.statusDraftBg, fg: colors.statusDraftText },
   Unfinished: { bg: colors.statusDraftBg, fg: colors.statusDraftText },
+  'Awaiting approval': { bg: colors.statusPendingBg, fg: colors.statusPendingText },
+  Completed: { bg: colors.statusApprovedBg, fg: colors.statusApprovedText },
   default: { bg: colors.statusDraftBg, fg: colors.statusDraftText },
 };
 

@@ -184,6 +184,7 @@ export function StoreMovementHeaderScreen() {
           docKind: 'kitchen_to_store',
           issueId: res.data.id,
           stockStoreName: issuingStoreName.trim(),
+          initialTab: 'lines',
         });
       } else {
         const res = await postStoreToKitchenMovementHeader(token, {
@@ -198,6 +199,7 @@ export function StoreMovementHeaderScreen() {
           docKind: 'store_to_kitchen',
           issueId: res.data.id,
           stockStoreName: receivingStoreName.trim(),
+          initialTab: 'lines',
         });
       }
     } catch (e) {

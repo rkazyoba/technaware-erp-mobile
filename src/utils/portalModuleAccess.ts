@@ -44,3 +44,32 @@ export function portalModuleAccessGate(
   }
   return isPortalModuleRouteAccessible(portal, moduleRoute) ? 'allowed' : 'denied';
 }
+
+type ProcurementDetailAccessFlags = {
+  canViewPurchaseRfqs: boolean;
+  canViewSupplierQuotations: boolean;
+  canViewRequisitions: boolean;
+};
+
+/**
+ * RFQ / supplier quotation detail is opened from the procurement modules list or from
+ * requisition sourcing links — do not require the destination module surface when the user
+ * already has procurement or requisition read access.
+ */
+export function procurementRecordDetailAccessGate(
+  portal: MobilePortalBootstrap | null | undefined,
+  moduleRoute: string,
+  detailKind: string,
+  flags: ProcurementDetailAccessFlags,
+): PortalModuleAccessGate {
+  if (portal === null || portal === undefined) {
+    return 'pending';
+  }
+  if (detailKind === 'purchase_rfq' && (flags.canViewPurchaseRfqs || flags.canViewRequisitions)) {
+    return 'allowed';
+  }
+  if (detailKind === 'supplier_quotation' && (flags.canViewSupplierQuotations || flags.canViewRequisitions)) {
+    return 'allowed';
+  }
+  return portalModuleAccessGate(portal, moduleRoute);
+}

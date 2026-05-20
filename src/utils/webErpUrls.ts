@@ -10,6 +10,8 @@ export const webErpPaths = {
   newRequisition: '/add/requisition',
   newGrnPo: '/add/po/receipt',
   newNonPoReceipt: '/add/non_po/receipt',
+  newSupplierReturn: '/add/supplier/return',
+  newPickTicket: '/pick-tickets/create',
 } as const;
 
 export function webErpUrl(path: string): string {

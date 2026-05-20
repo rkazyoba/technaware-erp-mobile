@@ -4,7 +4,7 @@ import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navig
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, View } from 'react-native';
 import { Text, TextInput } from '../components/AppTypography';
-import { approveItem, rejectItem, type CrmQuotationDetail } from '../api';
+import { approveItem, getApprovalDetail, rejectItem, type ApprovalDetail, type CrmQuotationDetail } from '../api';
 import {
   AccountingPeriodOverview,
   BankStatementLinesList,
@@ -46,21 +46,37 @@ import { useRecordAccountingDetail } from '../hooks/useRecordAccountingDetail';
 import { useRecordFinanceDetail } from '../hooks/useRecordFinanceDetail';
 import type { ModulesStackParamList, RecordDetailParams } from '../navigation/moduleStackTypes';
 import { styles } from '../styles/appStyles';
-import { approvalWebDocumentAction, logisticsWebDocumentAction, purchaseOrderWebPdfUrl, quotationWebPdfUrl } from '../utils/erpDocumentPdfUrls';
+import {
+  approvalWebDocumentAction,
+  logisticsWebDocumentAction,
+  parseApprovalCompositeId,
+  purchaseOrderWebPdfUrl,
+  quotationWebPdfUrl,
+} from '../utils/erpDocumentPdfUrls';
 import { webErpBaseUrl } from '../utils/webErpUrls';
 import { isAccountingApiListModule } from '../utils/accountingPortal';
 import { isFinanceReportMobileModule } from '../utils/financeReportPortal';
 import { webPathForPortalSurface } from '../utils/portalWebSurfaces';
-import { portalModuleAccessGate } from '../utils/portalModuleAccess';
+import { procurementRecordDetailAccessGate } from '../utils/portalModuleAccess';
 
 const TAB_OVERVIEW = 'overview';
 const TAB_LINES = 'lines';
+const TAB_SOURCING = 'sourcing';
+
+function fmtMoney(n: number | null | undefined, currency?: string | null): string {
+  if (n == null || Number.isNaN(n)) return '—';
+  const cur = currency?.trim();
+  const body = n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return cur ? `${body} ${cur}` : body;
+}
 
 function detailTabDefs(kind: RecordDetailParams['detailKind']): { id: string; label: string }[] | null {
   switch (kind) {
     case 'logistics':
     case 'requisition':
     case 'purchase_order':
+    case 'purchase_rfq':
+    case 'supplier_quotation':
     case 'approval':
     case 'crm_quotation':
       return [
@@ -166,6 +182,10 @@ function hasLoadedBody(kind: RecordDetailParams['detailKind'], sp: ReturnType<ty
       return Boolean(sp.requisitionDetail);
     case 'purchase_order':
       return Boolean(sp.purchaseOrderDetail);
+    case 'purchase_rfq':
+      return Boolean(sp.purchaseRfqDetail);
+    case 'supplier_quotation':
+      return Boolean(sp.supplierQuotationDetail);
     case 'approval':
       return Boolean(sp.approvalDetail);
     case 'leave':
@@ -260,6 +280,9 @@ export function RecordDetailScreen() {
   const [notificationMarkedRead, setNotificationMarkedRead] = useState(false);
   const [quotationDecisionNote, setQuotationDecisionNote] = useState('');
   const [detailTab, setDetailTab] = useState<string>(TAB_OVERVIEW);
+  const [localApprovalDetail, setLocalApprovalDetail] = useState<ApprovalDetail | null>(null);
+  const [localApprovalLoading, setLocalApprovalLoading] = useState(false);
+  const [localApprovalError, setLocalApprovalError] = useState<string | null>(null);
 
   useEffect(() => {
     setNotificationMarkedRead(Boolean(notificationPreview?.read));
@@ -281,6 +304,8 @@ export function RecordDetailScreen() {
     fetchLogisticsDetail,
     loadRequisitionDetail,
     loadPurchaseOrderDetail,
+    loadPurchaseRfqDetail,
+    loadSupplierQuotationDetail,
     loadEmployeeDetail,
     loadLeaveBalanceDetail,
     hrCatalog,
@@ -306,6 +331,8 @@ export function RecordDetailScreen() {
     logisticsDetail,
     requisitionDetail,
     purchaseOrderDetail,
+    purchaseRfqDetail,
+    supplierQuotationDetail,
     employeeDetail,
     leaveBalanceDetail,
     leaveDetail,
@@ -327,6 +354,8 @@ export function RecordDetailScreen() {
     setLogisticsDetail,
     setRequisitionDetail,
     setPurchaseOrderDetail,
+    setPurchaseRfqDetail,
+    setSupplierQuotationDetail,
     setEmployeeDetail,
     setLeaveBalanceDetail,
     setLeaveDetail,
@@ -348,12 +377,66 @@ export function RecordDetailScreen() {
     markOneNotificationRead,
     loadNotifications,
     portal,
+    canViewMobileRequisitions,
+    canViewMobilePurchaseRfqs,
+    canViewMobileSupplierQuotations,
   } = sp;
 
-  const moduleAccessGate = useMemo(() => portalModuleAccessGate(portal, moduleRoute.trim()), [portal, moduleRoute]);
+  const openProcurementDetail = useCallback(
+    (target: RecordDetailParams) => {
+      navigation.navigate('RecordDetail', target);
+    },
+    [navigation],
+  );
+
+  const moduleAccessGate = useMemo(
+    () =>
+      procurementRecordDetailAccessGate(portal, moduleRoute.trim(), detailKind, {
+        canViewPurchaseRfqs: canViewMobilePurchaseRfqs,
+        canViewSupplierQuotations: canViewMobileSupplierQuotations,
+        canViewRequisitions: canViewMobileRequisitions,
+      }),
+    [
+      portal,
+      moduleRoute,
+      detailKind,
+      canViewMobilePurchaseRfqs,
+      canViewMobileSupplierQuotations,
+      canViewMobileRequisitions,
+    ],
+  );
 
   const financeDetail = useRecordFinanceDetail(detailKind, recordId, token);
   const accountingDetail = useRecordAccountingDetail(detailKind, recordId, token);
+
+  const loadLocalApprovalDetail = useCallback(async () => {
+    if (!token || !recordId) {
+      return;
+    }
+    setLocalApprovalLoading(true);
+    setLocalApprovalError(null);
+    try {
+      const res = await getApprovalDetail(token, recordId);
+      setLocalApprovalDetail(res.data);
+    } catch (error) {
+      setLocalApprovalDetail(null);
+      const message = error instanceof Error ? error.message : 'Failed to load approval details.';
+      setLocalApprovalError(
+        /too many attempts/i.test(message)
+          ? 'Too many requests. Wait about a minute, then tap Retry.'
+          : message,
+      );
+    } finally {
+      setLocalApprovalLoading(false);
+    }
+  }, [token, recordId]);
+
+  useEffect(() => {
+    if (detailKind !== 'approval' || moduleAccessGate !== 'allowed' || !token || !recordId) {
+      return;
+    }
+    void loadLocalApprovalDetail();
+  }, [detailKind, moduleAccessGate, token, recordId, loadLocalApprovalDetail]);
 
   useFocusEffect(
     useCallback(() => {
@@ -368,6 +451,8 @@ export function RecordDetailScreen() {
         setLogisticsDetail(null);
         setRequisitionDetail(null);
         setPurchaseOrderDetail(null);
+        setPurchaseRfqDetail(null);
+        setSupplierQuotationDetail(null);
         setEmployeeDetail(null);
         setLeaveBalanceDetail(null);
         setLeaveDetail(null);
@@ -396,6 +481,8 @@ export function RecordDetailScreen() {
       setLogisticsDetail,
       setRequisitionDetail,
       setPurchaseOrderDetail,
+      setPurchaseRfqDetail,
+      setSupplierQuotationDetail,
       setEmployeeDetail,
       setLeaveBalanceDetail,
       setLeaveDetail,
@@ -427,13 +514,17 @@ export function RecordDetailScreen() {
     setLogisticsDetail(null);
     setRequisitionDetail(null);
     setPurchaseOrderDetail(null);
+    setPurchaseRfqDetail(null);
+    setSupplierQuotationDetail(null);
     setEmployeeDetail(null);
     setLeaveBalanceDetail(null);
     setLeaveDetail(null);
     setPayslipDetail(null);
     setPartDetail(null);
     setSupportDetail(null);
-    setApprovalDetail(null);
+    if (detailKind !== 'approval') {
+      setApprovalDetail(null);
+    }
     setCrmCustomerDetail(null);
     setCrmContractDetail(null);
     setCrmQuotationDetail(null);
@@ -470,6 +561,14 @@ export function RecordDetailScreen() {
       void loadPurchaseOrderDetail(recordId);
       return;
     }
+    if (detailKind === 'purchase_rfq') {
+      void loadPurchaseRfqDetail(recordId);
+      return;
+    }
+    if (detailKind === 'supplier_quotation') {
+      void loadSupplierQuotationDetail(recordId);
+      return;
+    }
     if (financeDetail.isFinance) {
       return;
     }
@@ -491,7 +590,6 @@ export function RecordDetailScreen() {
       return;
     }
     if (detailKind === 'approval') {
-      void loadApprovalDetail(recordId);
       return;
     }
     if (detailKind === 'leave') {
@@ -570,6 +668,8 @@ export function RecordDetailScreen() {
     fetchLogisticsDetail,
     loadRequisitionDetail,
     loadPurchaseOrderDetail,
+    loadPurchaseRfqDetail,
+    loadSupplierQuotationDetail,
     loadEmployeeDetail,
     loadLeaveBalanceDetail,
     loadHrCatalogDetail,
@@ -589,6 +689,8 @@ export function RecordDetailScreen() {
     setLogisticsDetail,
     setRequisitionDetail,
     setPurchaseOrderDetail,
+    setPurchaseRfqDetail,
+    setSupplierQuotationDetail,
     setEmployeeDetail,
     setLeaveBalanceDetail,
     setLeaveDetail,
@@ -614,41 +716,49 @@ export function RecordDetailScreen() {
   const hrCatalogRoute = hrCatalogRouteForDetailKind(detailKind);
   const hrCatalogDetail = hrCatalogRoute ? hrCatalog[hrCatalogRoute].detail : null;
 
+  const approvalDetailEffective = detailKind === 'approval' ? localApprovalDetail : approvalDetail;
+
   const loadedBody =
-    detailKind === 'portal_web_surface'
-      ? Boolean(portalWebPath?.trim())
-      : financeDetail.isFinance
-        ? financeDetail.loaded
-        : accountingDetail.isAccountingDetail
-          ? accountingDetail.loaded
-          : hasLoadedBody(detailKind, sp, params);
+    detailKind === 'approval'
+      ? Boolean(localApprovalDetail)
+      : detailKind === 'portal_web_surface'
+        ? Boolean(portalWebPath?.trim())
+        : financeDetail.isFinance
+          ? financeDetail.loaded
+          : accountingDetail.isAccountingDetail
+            ? accountingDetail.loaded
+            : hasLoadedBody(detailKind, sp, params);
   const detailError =
-    detailKind === 'portal_web_surface'
-      ? portalWebPath?.trim()
-        ? null
-        : 'Missing web ERP link for this report.'
-      : financeDetail.isFinance
-        ? financeDetail.error
-        : accountingDetail.isAccountingDetail
-          ? accountingDetail.error
-          : moduleError;
+    detailKind === 'approval'
+      ? localApprovalError
+      : detailKind === 'portal_web_surface'
+        ? portalWebPath?.trim()
+          ? null
+          : 'Missing web ERP link for this report.'
+        : financeDetail.isFinance
+          ? financeDetail.error
+          : accountingDetail.isAccountingDetail
+            ? accountingDetail.error
+            : moduleError;
   const detailLoading =
-    detailKind === 'portal_web_surface'
-      ? false
-      : financeDetail.isFinance
-        ? financeDetail.loading
-        : accountingDetail.isAccountingDetail
-          ? accountingDetail.loading
-          : moduleLoading;
+    detailKind === 'approval'
+      ? localApprovalLoading
+      : detailKind === 'portal_web_surface'
+        ? false
+        : financeDetail.isFinance
+          ? financeDetail.loading
+          : accountingDetail.isAccountingDetail
+            ? accountingDetail.loading
+            : moduleLoading;
   const showLoading = detailLoading && !loadedBody && !detailError;
 
   const webDocAction = useMemo(() => {
     if (detailKind === 'logistics') return logisticsWebDocumentAction(logisticsPath, recordId);
-    if (detailKind === 'approval' && approvalDetail?.id) return approvalWebDocumentAction(approvalDetail.id);
+    if (detailKind === 'approval' && approvalDetailEffective?.id) return approvalWebDocumentAction(approvalDetailEffective.id);
     if (detailKind === 'crm_quotation') return quotationWebPdfUrl(recordId);
     if (detailKind === 'purchase_order') return purchaseOrderWebPdfUrl(recordId);
     return null;
-  }, [detailKind, recordId, logisticsPath, approvalDetail?.id]);
+  }, [detailKind, recordId, logisticsPath, approvalDetailEffective?.id]);
 
   const openWebDocument = useCallback(async () => {
     if (!webDocAction) return;
@@ -656,7 +766,20 @@ export function RecordDetailScreen() {
     if (ok) await Linking.openURL(webDocAction.url);
   }, [webDocAction]);
 
-  const activeDetailTabs = loadedBody && !detailError ? detailTabDefs(detailKind) : null;
+  const activeDetailTabs = useMemo(() => {
+    if (!loadedBody || detailError) return null;
+    const base = detailTabDefs(detailKind);
+    if (!base) return null;
+    if (detailKind === 'requisition' && requisitionDetail?.sourcing) {
+      const s = requisitionDetail.sourcing;
+      const hasSourcing =
+        Boolean(s.active_rfq) || (s.rfqs?.length ?? 0) > 0 || (s.quotations?.length ?? 0) > 0 || Boolean(s.awarded_quotation);
+      if (hasSourcing) {
+        return [...base, { id: TAB_SOURCING, label: 'Sourcing' }];
+      }
+    }
+    return base;
+  }, [loadedBody, detailError, detailKind, requisitionDetail?.sourcing]);
 
   const financeHeroMeta = useMemo((): FinanceHeroMeta | null => {
     if (!financeDetail.isFinance || !financeDetail.loaded) return null;
@@ -708,6 +831,8 @@ export function RecordDetailScreen() {
     if (detailKind === 'logistics' && logisticsDetail) return logisticsDetail.ref;
     if (detailKind === 'requisition' && requisitionDetail) return requisitionDetail.ref;
     if (detailKind === 'purchase_order' && purchaseOrderDetail) return purchaseOrderDetail.ref;
+    if (detailKind === 'purchase_rfq' && purchaseRfqDetail) return purchaseRfqDetail.ref;
+    if (detailKind === 'supplier_quotation' && supplierQuotationDetail) return supplierQuotationDetail.ref;
     if (detailKind === 'hr_employee' && employeeDetail) return employeeDetail.employee_code || employeeDetail.name;
     if (detailKind === 'hr_leave_balance' && leaveBalanceDetail) return leaveBalanceDetail.leave_type_name || leaveBalanceDetail.leave_type_id;
     if (detailKind === 'hr_department' && hrCatalogDetail && 'name' in hrCatalogDetail) return hrCatalogDetail.name;
@@ -720,7 +845,7 @@ export function RecordDetailScreen() {
       const pe = payslipDetail.period_end ?? '';
       return ps && pe ? `${ps} → ${pe}` : titleHint || recordId;
     }
-    if (detailKind === 'approval' && approvalDetail) return approvalDetail.ref;
+    if (detailKind === 'approval' && approvalDetailEffective) return approvalDetailEffective.ref;
     if (detailKind === 'leave' && leaveDetail) return leaveDetail.id;
     if (detailKind === 'part' && partDetail) return partDetail.code;
     if (detailKind === 'support' && supportDetail) return supportDetail.ticket_number;
@@ -750,12 +875,14 @@ export function RecordDetailScreen() {
     if (detailKind === 'logistics' && logisticsPath) void fetchLogisticsDetail(recordId, logisticsPath);
     else if (detailKind === 'requisition') void loadRequisitionDetail(recordId);
     else if (detailKind === 'purchase_order') void loadPurchaseOrderDetail(recordId);
+    else if (detailKind === 'purchase_rfq') void loadPurchaseRfqDetail(recordId);
+    else if (detailKind === 'supplier_quotation') void loadSupplierQuotationDetail(recordId);
     else if (financeDetail.isFinance) void financeDetail.reload();
     else if (accountingDetail.isAccountingDetail) void accountingDetail.reload();
     else if (detailKind === 'hr_employee') void loadEmployeeDetail(recordId);
     else if (detailKind === 'hr_leave_balance') void loadLeaveBalanceDetail(recordId);
     else if (hrCatalogRoute) void loadHrCatalogDetail(hrCatalogRoute, recordId);
-    else if (detailKind === 'approval') void loadApprovalDetail(recordId);
+    else if (detailKind === 'approval') void loadLocalApprovalDetail();
     else if (detailKind === 'leave') void loadLeaveRequestDetail(recordId);
     else if (detailKind === 'payslip') void loadPayslipDetail(recordId);
     else if (detailKind === 'part') void fetchPartDetail(recordId);
@@ -828,10 +955,12 @@ export function RecordDetailScreen() {
       (detailKind === 'logistics' && !!logisticsDetail) ||
       (detailKind === 'requisition' && !!requisitionDetail) ||
       (detailKind === 'purchase_order' && !!purchaseOrderDetail) ||
+      (detailKind === 'purchase_rfq' && !!purchaseRfqDetail) ||
+      (detailKind === 'supplier_quotation' && !!supplierQuotationDetail) ||
       (detailKind === 'hr_employee' && !!employeeDetail) ||
       (detailKind === 'hr_leave_balance' && !!leaveBalanceDetail) ||
       (hrCatalogRoute && !!hrCatalogDetail) ||
-      (detailKind === 'approval' && !!approvalDetail) ||
+      (detailKind === 'approval' && !!approvalDetailEffective) ||
       (detailKind === 'leave' && !!leaveDetail) ||
       (detailKind === 'payslip' && !!payslipDetail) ||
       (detailKind === 'crm_customer' && !!crmCustomerDetail) ||
@@ -851,7 +980,11 @@ export function RecordDetailScreen() {
         ? requisitionDetail.status_label
         : detailKind === 'purchase_order' && purchaseOrderDetail
           ? purchaseOrderDetail.status_label
-          : detailKind === 'finance_customer_invoice' && financeDetail.customerInvoice
+          : detailKind === 'purchase_rfq' && purchaseRfqDetail
+            ? purchaseRfqDetail.status_label
+            : detailKind === 'supplier_quotation' && supplierQuotationDetail
+              ? supplierQuotationDetail.status_label
+              : detailKind === 'finance_customer_invoice' && financeDetail.customerInvoice
             ? financeDetail.customerInvoice.status_label
             : detailKind === 'finance_proforma_invoice' && financeDetail.proformaInvoice
               ? financeDetail.proformaInvoice.status_label
@@ -895,8 +1028,8 @@ export function RecordDetailScreen() {
                           ? String(hrCatalogDetail.status)
                           : hrCatalogRoute && hrCatalogDetail && 'status_label' in hrCatalogDetail
                             ? String(hrCatalogDetail.status_label)
-                            : detailKind === 'approval' && approvalDetail
-                          ? formatWorkflowStatus(approvalDetail.status)
+                            : detailKind === 'approval' && approvalDetailEffective
+                          ? formatWorkflowStatus(approvalDetailEffective.status)
           : detailKind === 'leave' && leaveDetail
             ? formatWorkflowStatus(leaveDetail.status)
             : detailKind === 'crm_customer' && crmCustomerDetail
@@ -1066,6 +1199,8 @@ export function RecordDetailScreen() {
             detailKind === 'logistics' ||
             detailKind === 'requisition' ||
             detailKind === 'purchase_order' ||
+            detailKind === 'purchase_rfq' ||
+            detailKind === 'supplier_quotation' ||
             detailKind === 'approval' ||
             detailKind === 'leave' ||
             detailKind === 'part' ||
@@ -1088,6 +1223,72 @@ export function RecordDetailScreen() {
 
         {detailKind === 'logistics' && logisticsDetail ? (
           <View style={{ marginTop: 8 }}>
+            {logisticsPath === 'inventory/delivery-notes' ? (
+              <Pressable
+                style={[styles.detailsButton, { marginBottom: 12 }]}
+                onPress={() =>
+                  navigation.navigate('DeliveryNoteLines', { deliveryNoteId: recordId })
+                }
+              >
+                <Text style={styles.detailsButtonText}>Open delivery note workspace</Text>
+              </Pressable>
+            ) : null}
+            {logisticsPath === 'inventory/non-po-receipts' ? (
+              <Pressable
+                style={[styles.detailsButton, { marginBottom: 12 }]}
+                onPress={() => navigation.navigate('NonPoReceiptWorkspace', { receiptId: recordId })}
+              >
+                <Text style={styles.detailsButtonText}>Open non-PO receipt workspace</Text>
+              </Pressable>
+            ) : null}
+            {logisticsPath === 'inventory/po-receipts' ? (
+              <Pressable
+                style={[styles.detailsButton, { marginBottom: 12 }]}
+                onPress={() => navigation.navigate('PoReceiptWorkspace', { receiptId: recordId })}
+              >
+                <Text style={styles.detailsButtonText}>Open PO receipt workspace</Text>
+              </Pressable>
+            ) : null}
+            {logisticsPath === 'inventory/supplier-returns' ? (
+              <Pressable
+                style={[styles.detailsButton, { marginBottom: 12 }]}
+                onPress={() => navigation.navigate('SupplierReturnWorkspace', { supplierReturnId: recordId })}
+              >
+                <Text style={styles.detailsButtonText}>Open supplier return workspace</Text>
+              </Pressable>
+            ) : null}
+            {logisticsPath === 'inventory/pick-tickets' ? (
+              <Pressable
+                style={[styles.detailsButton, { marginBottom: 12 }]}
+                onPress={() => navigation.navigate('PickTicketWorkspace', { pickTicketId: recordId })}
+              >
+                <Text style={styles.detailsButtonText}>Open pick ticket workspace</Text>
+              </Pressable>
+            ) : null}
+            {logisticsPath === 'inventory/movements/kitchen-to-store' ||
+            logisticsPath === 'inventory/movements/store-to-kitchen' ? (
+              <Pressable
+                style={[styles.detailsButton, { marginBottom: 12 }]}
+                onPress={() => {
+                  const docKind =
+                    logisticsPath === 'inventory/movements/kitchen-to-store'
+                      ? ('kitchen_to_store' as const)
+                      : ('store_to_kitchen' as const);
+                  const ctxParts = (logisticsDetail.context ?? '').split('→').map((s) => s.trim());
+                  const stockName =
+                    docKind === 'kitchen_to_store' ? ctxParts[0] ?? '' : ctxParts[1] ?? ctxParts[0] ?? '';
+                  navigation.navigate('StoreMovementLines', {
+                    issueId: recordId,
+                    docKind,
+                    stockStoreName: stockStoreName?.trim() || stockName,
+                    readOnly: logisticsDetail.status !== '0',
+                    initialTab: 'overview',
+                  });
+                }}
+              >
+                <Text style={styles.detailsButtonText}>Open store movement workspace</Text>
+              </Pressable>
+            ) : null}
             {activeDetailTabs ? <DetailTabBar tabs={activeDetailTabs} active={detailTab} onChange={setDetailTab} /> : null}
             {(!activeDetailTabs || detailTab === TAB_OVERVIEW) ? (
               <>
@@ -1096,6 +1297,21 @@ export function RecordDetailScreen() {
                 <Text style={styles.meta}>Status: {logisticsDetail.status_label}</Text>
                 <Text style={styles.meta}>Date: {logisticsDetail.document_date ?? '—'}</Text>
                 {logisticsDetail.context ? <Text style={styles.meta}>{logisticsDetail.context}</Text> : null}
+                {logisticsDetail.total_amount != null || logisticsDetail.total_amount_reporting != null ? (
+                  <Text style={styles.meta}>
+                    Total: {fmtMoney(logisticsDetail.total_amount, logisticsDetail.base_currency)}
+                    {logisticsDetail.total_amount_reporting != null
+                      ? ` · Reporting: ${fmtMoney(logisticsDetail.total_amount_reporting, logisticsDetail.reporting_currency)}`
+                      : ''}
+                  </Text>
+                ) : null}
+                {logisticsDetail.expiration_summary ? (
+                  <Text style={styles.meta}>
+                    Lot / expiry: {logisticsDetail.expiration_summary.allocated_qty.toFixed(2)} of{' '}
+                    {logisticsDetail.expiration_summary.received_qty.toFixed(2)} allocated
+                    {logisticsDetail.expiration_summary.complete ? ' (complete)' : ` · ${logisticsDetail.expiration_summary.remaining_qty.toFixed(2)} remaining`}
+                  </Text>
+                ) : null}
               </>
             ) : null}
             {(!activeDetailTabs || detailTab === TAB_LINES) ? (
@@ -1110,6 +1326,16 @@ export function RecordDetailScreen() {
                       <Text style={styles.approvalOwner}>
                         {typeof line.quantity === 'number' ? line.quantity.toFixed(2) : line.quantity} {line.unit || ''}
                         {line.note ? ` · ${line.note}` : ''}
+                        {line.line_amount != null ? ` · ${fmtMoney(line.line_amount, logisticsDetail.base_currency)}` : ''}
+                        {line.line_amount_reporting != null
+                          ? ` · Rpt ${fmtMoney(line.line_amount_reporting, logisticsDetail.reporting_currency)}`
+                          : ''}
+                        {line.pax != null && line.pax > 0 ? ` · Pax ${line.pax}` : ''}
+                        {line.expiration_complete === true
+                          ? ' · Lots OK'
+                          : line.expiration_remaining_qty != null && line.expiration_remaining_qty > 0.00001
+                            ? ` · Lots: ${(line.expiration_allocated_qty ?? 0).toFixed(2)}/${line.quantity.toFixed(2)}`
+                            : null}
                       </Text>
                     </View>
                   ))
@@ -1145,6 +1371,105 @@ export function RecordDetailScreen() {
                       </Text>
                     </View>
                   ))
+                )}
+              </>
+            ) : null}
+            {(!activeDetailTabs || detailTab === TAB_SOURCING) && requisitionDetail.sourcing ? (
+              <>
+                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Procurement sourcing</Text>
+                <Text style={[styles.meta, { marginTop: 8 }]}>
+                  Read-only snapshot from the web ERP. Manage RFQs and quotations on the web.
+                </Text>
+                {requisitionDetail.sourcing.active_rfq ? (
+                  <Pressable
+                    style={{ marginTop: 8 }}
+                    onPress={() =>
+                      openProcurementDetail({
+                        moduleRoute: 'Purchase RFQs',
+                        detailKind: 'purchase_rfq',
+                        recordId: requisitionDetail.sourcing!.active_rfq!.id,
+                        titleHint: requisitionDetail.sourcing!.active_rfq!.rfq_no,
+                      })
+                    }
+                  >
+                    <Text style={[styles.meta, { color: colors.accentTeal }]}>
+                      Active RFQ: {requisitionDetail.sourcing.active_rfq.rfq_no} ·{' '}
+                      {requisitionDetail.sourcing.active_rfq.status_label}
+                      {requisitionDetail.sourcing.active_rfq.sent_at
+                        ? ` · Sent ${requisitionDetail.sourcing.active_rfq.sent_at}`
+                        : ''}
+                      {' · View'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {requisitionDetail.sourcing.awarded_quotation ? (
+                  <Text style={styles.meta}>
+                    Awarded: {requisitionDetail.sourcing.awarded_quotation.supplier || '—'}
+                    {requisitionDetail.sourcing.awarded_quotation.quotation_ref
+                      ? ` · ${requisitionDetail.sourcing.awarded_quotation.quotation_ref}`
+                      : ''}
+                    {' · '}
+                    {fmtMoney(requisitionDetail.sourcing.awarded_quotation.total)}
+                  </Text>
+                ) : null}
+                {requisitionDetail.sourcing.rfqs.length > 0 ? (
+                  <>
+                    <Text style={{ ...outfit('medium', 13), color: colors.textMuted, marginTop: 14, marginBottom: 6 }}>
+                      RFQs
+                    </Text>
+                    {requisitionDetail.sourcing.rfqs.map((rfq) => (
+                      <Pressable
+                        key={rfq.id}
+                        style={styles.approvalLineRow}
+                        onPress={() =>
+                          openProcurementDetail({
+                            moduleRoute: 'Purchase RFQs',
+                            detailKind: 'purchase_rfq',
+                            recordId: rfq.id,
+                            titleHint: rfq.rfq_no,
+                          })
+                        }
+                      >
+                        <Text style={styles.approvalType}>{rfq.rfq_no}</Text>
+                        <Text style={styles.approvalOwner}>
+                          {rfq.status_label}
+                          {rfq.sent_at ? ` · Sent ${rfq.sent_at}` : ''}
+                          {rfq.is_active ? ' · Active' : ''}
+                          {' · View'}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </>
+                ) : null}
+                {requisitionDetail.sourcing.quotations.length > 0 ? (
+                  <>
+                    <Text style={{ ...outfit('medium', 13), color: colors.textMuted, marginTop: 14, marginBottom: 6 }}>
+                      Supplier quotations
+                    </Text>
+                    {requisitionDetail.sourcing.quotations.map((q) => (
+                      <Pressable
+                        key={q.id}
+                        style={styles.approvalLineRow}
+                        onPress={() =>
+                          openProcurementDetail({
+                            moduleRoute: 'Supplier quotations',
+                            detailKind: 'supplier_quotation',
+                            recordId: q.id,
+                            titleHint: q.quotation_ref || q.supplier,
+                          })
+                        }
+                      >
+                        <Text style={styles.approvalType}>{q.supplier || '—'}</Text>
+                        <Text style={styles.approvalOwner}>
+                          {q.quotation_ref || '—'} · {q.status_label} · {fmtMoney(q.total)}
+                          {q.rfq_no ? ` · RFQ ${q.rfq_no}` : ''}
+                          {' · View'}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </>
+                ) : (
+                  <Text style={[styles.emptyStateText, { marginTop: 8 }]}>No supplier quotations yet.</Text>
                 )}
               </>
             ) : null}
@@ -1282,31 +1607,255 @@ export function RecordDetailScreen() {
           </View>
         ) : null}
 
-        {detailKind === 'approval' && approvalDetail ? (
+        {detailKind === 'purchase_rfq' && purchaseRfqDetail ? (
           <View style={{ marginTop: 8 }}>
             {activeDetailTabs ? <DetailTabBar tabs={activeDetailTabs} active={detailTab} onChange={setDetailTab} /> : null}
             {(!activeDetailTabs || detailTab === TAB_OVERVIEW) ? (
               <>
-                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>{approvalDetail.type}</Text>
-                <Text style={[styles.meta, { marginTop: 8 }]}>Ref: {approvalDetail.ref}</Text>
-                <Text style={styles.meta}>Status: {formatWorkflowStatus(approvalDetail.status)}</Text>
-                <Text style={styles.meta}>Requested: {approvalDetail.requested_date ?? '—'}</Text>
-                <Text style={styles.meta}>Requested by: {approvalDetail.owner}</Text>
-                <Text style={styles.meta}>Comment: {approvalDetail.approval_comment ?? '—'}</Text>
-                <Text style={styles.meta}>Priority: {approvalDetail.priority || '—'}</Text>
+                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Request for quotation</Text>
+                <Text style={[styles.meta, { marginTop: 8 }]}>Ref: {purchaseRfqDetail.ref}</Text>
+                <Text style={styles.meta}>Status: {purchaseRfqDetail.status_label}</Text>
+                <Text style={styles.meta}>Requisition: {purchaseRfqDetail.requisition_ref || '—'}</Text>
+                <Text style={styles.meta}>Site: {purchaseRfqDetail.site || '—'}</Text>
+                <Text style={styles.meta}>Store: {purchaseRfqDetail.store || '—'}</Text>
+                {purchaseRfqDetail.sent_at ? <Text style={styles.meta}>Sent: {purchaseRfqDetail.sent_at}</Text> : null}
+                {purchaseRfqDetail.awarded_supplier?.trim() ? (
+                  <Text style={styles.meta}>Awarded supplier: {purchaseRfqDetail.awarded_supplier}</Text>
+                ) : null}
+                {purchaseRfqDetail.description?.trim() ? (
+                  <Text style={[styles.moduleBody, { marginTop: 10 }]}>{purchaseRfqDetail.description.trim()}</Text>
+                ) : null}
+                {purchaseRfqDetail.requisition_description?.trim() ? (
+                  <Text style={[styles.meta, { marginTop: 8 }]}>
+                    Requisition note: {purchaseRfqDetail.requisition_description.trim()}
+                  </Text>
+                ) : null}
+                {purchaseRfqDetail.invited_suppliers.length > 0 ? (
+                  <>
+                    <Text style={{ ...outfit('medium', 13), color: colors.textMuted, marginTop: 14, marginBottom: 6 }}>
+                      Invited suppliers
+                    </Text>
+                    {purchaseRfqDetail.invited_suppliers.map((inv) => (
+                      <View key={inv.id} style={styles.approvalLineRow}>
+                        <Text style={styles.approvalType}>{inv.supplier || '—'}</Text>
+                        <Text style={styles.approvalOwner}>
+                          {inv.email || '—'} · {inv.status}
+                        </Text>
+                      </View>
+                    ))}
+                  </>
+                ) : null}
+                {purchaseRfqDetail.quotations.length > 0 ? (
+                  <>
+                    <Text style={{ ...outfit('medium', 13), color: colors.textMuted, marginTop: 14, marginBottom: 6 }}>
+                      Supplier quotations
+                    </Text>
+                    {purchaseRfqDetail.quotations.map((q) => (
+                      <Pressable
+                        key={q.id}
+                        style={styles.approvalLineRow}
+                        onPress={() =>
+                          openProcurementDetail({
+                            moduleRoute: 'Supplier quotations',
+                            detailKind: 'supplier_quotation',
+                            recordId: q.id,
+                            titleHint: q.quotation_ref || q.supplier,
+                          })
+                        }
+                      >
+                        <Text style={styles.approvalType}>{q.supplier || '—'}</Text>
+                        <Text style={styles.approvalOwner}>
+                          {q.quotation_ref || '—'} · {q.status_label} · {fmtMoney(q.total)}
+                          {' · View'}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </>
+                ) : null}
+                {purchaseRfqDetail.awarded_quotation ? (
+                  <Text style={[styles.meta, { marginTop: 12 }]}>
+                    Awarded: {purchaseRfqDetail.awarded_quotation.supplier || '—'}
+                    {purchaseRfqDetail.awarded_quotation.quotation_ref
+                      ? ` · ${purchaseRfqDetail.awarded_quotation.quotation_ref}`
+                      : ''}
+                    {' · '}
+                    {fmtMoney(purchaseRfqDetail.awarded_quotation.total)}
+                  </Text>
+                ) : null}
               </>
             ) : null}
             {(!activeDetailTabs || detailTab === TAB_LINES) ? (
               <>
-                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Line items</Text>
-                {approvalDetail.lines.length === 0 ? (
+                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>RFQ line items</Text>
+                {purchaseRfqDetail.lines.length === 0 ? (
                   <Text style={[styles.emptyStateText, { marginTop: 8 }]}>No line items.</Text>
                 ) : (
-                  approvalDetail.lines.map((line) => (
+                  purchaseRfqDetail.lines.map((line) => (
                     <View key={line.id} style={styles.approvalLineRow}>
                       <Text style={styles.approvalType}>{line.item}</Text>
                       <Text style={styles.approvalOwner}>
-                        {line.quantity} {line.unit || ''} {line.category ? `· ${line.category}` : ''}
+                        {line.quantity} {line.unit || ''}
+                        {line.note?.trim() ? ` · ${line.note.trim()}` : ''}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </>
+            ) : null}
+          </View>
+        ) : null}
+
+        {detailKind === 'supplier_quotation' && supplierQuotationDetail ? (
+          <View style={{ marginTop: 8 }}>
+            {activeDetailTabs ? <DetailTabBar tabs={activeDetailTabs} active={detailTab} onChange={setDetailTab} /> : null}
+            {(!activeDetailTabs || detailTab === TAB_OVERVIEW) ? (
+              <>
+                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Supplier quotation</Text>
+                <Text style={[styles.meta, { marginTop: 8 }]}>Ref: {supplierQuotationDetail.ref}</Text>
+                <Text style={styles.meta}>Supplier: {supplierQuotationDetail.supplier_name || '—'}</Text>
+                <Text style={styles.meta}>Status: {supplierQuotationDetail.status_label}</Text>
+                <Text style={styles.meta}>RFQ: {supplierQuotationDetail.rfq_no || '—'}</Text>
+                <Text style={styles.meta}>Requisition: {supplierQuotationDetail.requisition_ref || '—'}</Text>
+                {supplierQuotationDetail.quotation_date ? (
+                  <Text style={styles.meta}>Quotation date: {supplierQuotationDetail.quotation_date}</Text>
+                ) : null}
+                {supplierQuotationDetail.valid_until ? (
+                  <Text style={styles.meta}>Valid until: {supplierQuotationDetail.valid_until}</Text>
+                ) : null}
+                <Text style={[styles.meta, { marginTop: 8 }]}>
+                  Subtotal: {fmtMoney(supplierQuotationDetail.subtotal)} · Total: {fmtMoney(supplierQuotationDetail.total)}
+                </Text>
+                {supplierQuotationDetail.rfq_id?.trim() ? (
+                  <Pressable
+                    style={{ marginTop: 12 }}
+                    onPress={() =>
+                      openProcurementDetail({
+                        moduleRoute: 'Purchase RFQs',
+                        detailKind: 'purchase_rfq',
+                        recordId: supplierQuotationDetail.rfq_id,
+                        titleHint: supplierQuotationDetail.rfq_no,
+                      })
+                    }
+                  >
+                    <Text style={{ ...outfit('medium', 13), color: colors.accentTeal }}>View linked RFQ</Text>
+                  </Pressable>
+                ) : null}
+              </>
+            ) : null}
+            {(!activeDetailTabs || detailTab === TAB_LINES) ? (
+              <>
+                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Quotation lines</Text>
+                {supplierQuotationDetail.lines.length === 0 ? (
+                  <Text style={[styles.emptyStateText, { marginTop: 8 }]}>No line items.</Text>
+                ) : (
+                  supplierQuotationDetail.lines.map((line) => (
+                    <View
+                      key={line.id}
+                      style={[
+                        styles.approvalLineRow,
+                        { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+                      ]}
+                    >
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.approvalType} numberOfLines={3}>
+                          {line.item}
+                        </Text>
+                        <Text style={[styles.approvalOwner, { marginTop: 4 }]}>
+                          {line.quantity} {line.unit || ''}
+                          {line.unit_price != null ? ` · @${fmtMoney(line.unit_price)}` : ''}
+                          {line.note?.trim() ? ` · ${line.note.trim()}` : ''}
+                        </Text>
+                      </View>
+                      <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, flexShrink: 0 }}>
+                        {fmtMoney(line.line_total)}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </>
+            ) : null}
+          </View>
+        ) : null}
+
+        {detailKind === 'approval' && approvalDetailEffective ? (
+          <View style={{ marginTop: 8 }}>
+            {activeDetailTabs ? <DetailTabBar tabs={activeDetailTabs} active={detailTab} onChange={setDetailTab} /> : null}
+            {approvalDetailEffective.kind === 'delivery_note' ||
+            parseApprovalCompositeId(approvalDetailEffective.id)?.kind === 'delivery_note' ? (
+              <Pressable
+                style={[styles.detailsButton, { marginBottom: 12 }]}
+                onPress={() => {
+                  const numericId = parseApprovalCompositeId(approvalDetailEffective.id)?.numericId ?? recordId;
+                  navigation.navigate('DeliveryNoteLines', { deliveryNoteId: numericId });
+                }}
+              >
+                <Text style={styles.detailsButtonText}>Open delivery note workspace</Text>
+              </Pressable>
+            ) : null}
+            {(!activeDetailTabs || detailTab === TAB_OVERVIEW) ? (
+              <>
+                <Text style={{ ...outfit('medium', 16), color: colors.textPrimary }}>{approvalDetailEffective.type}</Text>
+                {approvalDetailEffective.subject?.trim() ? (
+                  <Text style={{ ...outfit('regular', 15), color: colors.textSecondary, marginTop: 8, lineHeight: 22 }}>
+                    {approvalDetailEffective.subject.trim()}
+                  </Text>
+                ) : null}
+                <Text style={[styles.meta, { marginTop: 10 }]}>Ref: {approvalDetailEffective.ref}</Text>
+                <Text style={styles.meta}>Status: {formatWorkflowStatus(approvalDetailEffective.status)}</Text>
+                {approvalDetailEffective.kind === 'delivery_note' ||
+                parseApprovalCompositeId(approvalDetailEffective.id)?.kind === 'delivery_note' ? (
+                  <>
+                    <Text style={styles.meta}>
+                      Customer: {approvalDetailEffective.customer_name?.trim() || approvalDetailEffective.owner || '—'}
+                    </Text>
+                    <Text style={styles.meta}>
+                      Prepared: {approvalDetailEffective.prepared_date ?? approvalDetailEffective.requested_date ?? '—'}
+                    </Text>
+                    <Text style={styles.meta}>Despatch: {approvalDetailEffective.despatch_date ?? '—'}</Text>
+                    {approvalDetailEffective.order_no?.trim() ? (
+                      <Text style={styles.meta}>Order no.: {approvalDetailEffective.order_no.trim()}</Text>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.meta}>Requested: {approvalDetailEffective.requested_date ?? '—'}</Text>
+                    <Text style={styles.meta}>Requested by: {approvalDetailEffective.owner}</Text>
+                  </>
+                )}
+                <Text style={styles.meta}>Comment: {approvalDetailEffective.approval_comment ?? '—'}</Text>
+                {approvalDetailEffective.priority ? (
+                  <Text style={styles.meta}>Priority: {approvalDetailEffective.priority}</Text>
+                ) : null}
+              </>
+            ) : null}
+            {(!activeDetailTabs || detailTab === TAB_LINES) ? (
+              <>
+                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary, marginTop: 4 }}>Product lines</Text>
+                {approvalDetailEffective.lines.length === 0 ? (
+                  <Text style={[styles.emptyStateText, { marginTop: 8 }]}>No line items on this delivery note.</Text>
+                ) : (
+                  approvalDetailEffective.lines.map((line) => (
+                    <View
+                      key={line.id}
+                      style={{
+                        marginTop: 10,
+                        padding: 12,
+                        borderRadius: 12,
+                        backgroundColor: colors.surface,
+                        borderWidth: 0.5,
+                        borderColor: colors.borderSubtle,
+                      }}
+                    >
+                      {line.product_code ? (
+                        <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>{line.product_code}</Text>
+                      ) : null}
+                      <Text style={{ ...outfit('medium', 15), color: colors.textPrimary, marginTop: line.product_code ? 4 : 0 }}>
+                        {line.item}
+                      </Text>
+                      <Text style={{ ...outfit('regular', 13), color: colors.textSecondary, marginTop: 6 }}>
+                        Qty {line.quantity}
+                        {line.unit ? ` ${line.unit}` : ''}
+                        {line.category ? ` · ${line.category}` : ''}
                       </Text>
                     </View>
                   ))
