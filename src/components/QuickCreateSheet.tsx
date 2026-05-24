@@ -70,6 +70,12 @@ export function QuickCreateSheet({ visible, onClose }: QuickCreateSheetProps) {
 
   const canLeave = isPortalModuleRouteAccessible(portal, 'Leave Requests');
 
+  const canStaffFinance =
+    isPortalModuleRouteAccessible(portal, 'Staff imprest') ||
+    isPortalModuleRouteAccessible(portal, 'Expense claims') ||
+    isPortalModuleRouteAccessible(portal, 'Petty cash requests');
+  const canCreateStaffFinance = canStaffFinance && staffPortalHasPermission(portal, 'erp.crud.payment_vouchers.create');
+
   const rows: QuickCreateRow[] = [];
 
   if (canNativeGrnPo) {
@@ -132,6 +138,21 @@ export function QuickCreateSheet({ visible, onClose }: QuickCreateSheetProps) {
       label: 'New leave request',
       icon: 'calendar-outline',
       onPress: () => goModulesScreen('LeaveRequestForm', 'Leave Requests'),
+    });
+  }
+
+  if (canCreateStaffFinance) {
+    rows.push({
+      key: 'staff_imprest',
+      label: 'New staff imprest',
+      icon: 'wallet-outline',
+      onPress: () => goModulesScreen('PettyCashRequestForm', 'Staff imprest', { requestType: 'imprest' }),
+    });
+    rows.push({
+      key: 'expense_claim',
+      label: 'New expense claim',
+      icon: 'document-text-outline',
+      onPress: () => goModulesScreen('PettyCashRequestForm', 'Expense claims', { requestType: 'expense_claim' }),
     });
   }
 

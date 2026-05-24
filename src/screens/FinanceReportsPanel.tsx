@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { Text } from '../components/AppTypography';
+import { PnLAccountActivityModal } from '../components/reports/PnLAccountActivityModal';
 import { ReportWebExportPanel } from '../components/reports/ReportWebExportPanel';
 import { SimpleBarChart } from '../components/reports/SimpleBarChart';
 import {
@@ -10,15 +11,21 @@ import {
   type FinanceReportPreset,
   type OverdueInvoicesReport,
   type ProfitAndLossReport,
+  type SitePerformanceReport,
   type SupplierWhtMonthlyReport,
   type TrialBalanceReport,
   type ArSummaryReport,
+  type BudgetListItem,
+  type BudgetVsActualReport,
+  getFinanceBudgetList,
+  getFinanceBudgetVsActual,
   getFinanceReportArSummary,
   getFinanceReportBalanceSheet,
   getFinanceReportCashFlow,
   getFinanceReportDailyInvoices,
   getFinanceReportOverdueInvoices,
   getFinanceReportProfitAndLoss,
+  getFinanceReportSitePerformance,
   getFinanceReportSupplierWhtMonthly,
   getFinanceReportTrialBalance,
 } from '../api';
@@ -37,10 +44,23 @@ function fmtMoney(n: number | null | undefined): string {
 type Props = {
   moduleRoute: FinanceReportMobileModule;
   webPath?: string;
+  /** Applied when navigating from Site performance → P&L */
+  initialPnlSiteId?: string;
+  initialPreset?: FinanceReportPreset;
+  onNavigateToProfitAndLoss?: (siteId: string, preset: FinanceReportPreset) => void;
   onOpenCustomerInvoice?: (id: string, titleHint?: string) => void;
+  onOpenJournalEntry?: (id: string, titleHint?: string) => void;
 };
 
-export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoice }: Props) {
+export function FinanceReportsPanel({
+  moduleRoute,
+  webPath,
+  initialPnlSiteId,
+  initialPreset,
+  onNavigateToProfitAndLoss,
+  onOpenCustomerInvoice,
+  onOpenJournalEntry,
+}: Props) {
   const { token } = useStaffPortal();
   const [loading, setLoading] = useState(true);
   const [pullRefreshing, setPullRefreshing] = useState(false);
@@ -53,17 +73,41 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
   const [ar, setAr] = useState<ArSummaryReport | null>(null);
   const [tb, setTb] = useState<TrialBalanceReport | null>(null);
   const [pnl, setPnl] = useState<ProfitAndLossReport | null>(null);
+  /** '' = whole company, 'unallocated' = corporate only, else site id string */
+  const [pnlSiteFilter, setPnlSiteFilter] = useState<string>('');
+  const [sitePerf, setSitePerf] = useState<SitePerformanceReport | null>(null);
   const [bs, setBs] = useState<BalanceSheetReport | null>(null);
   const [cf, setCf] = useState<CashFlowReport | null>(null);
   const [wht, setWht] = useState<SupplierWhtMonthlyReport | null>(null);
+  const [budgetList, setBudgetList] = useState<BudgetListItem[]>([]);
+  const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
+  const [budgetReport, setBudgetReport] = useState<BudgetVsActualReport | null>(null);
+  const [pnlActivityAccount, setPnlActivityAccount] = useState<{ id: string; label: string } | null>(null);
+
+  useEffect(() => {
+    if (initialPreset) setPreset(initialPreset);
+  }, [initialPreset]);
+
+  useEffect(() => {
+    if (moduleRoute === 'Report profit and loss' && initialPnlSiteId !== undefined) {
+      setPnlSiteFilter(initialPnlSiteId);
+    }
+  }, [moduleRoute, initialPnlSiteId]);
 
   const showPreset = useMemo(() => {
     return (
       moduleRoute === 'Report trial balance' ||
       moduleRoute === 'Report profit and loss' ||
+      moduleRoute === 'Report site performance' ||
       moduleRoute === 'Report cash flow'
     );
   }, [moduleRoute]);
+
+  const pnlSiteIdParam = useMemo(() => {
+    if (pnlSiteFilter === '' || pnlSiteFilter === 'all') return undefined;
+    if (pnlSiteFilter === 'unallocated') return 'unallocated';
+    return pnlSiteFilter;
+  }, [pnlSiteFilter]);
 
   const load = useCallback(async (mode: 'initial' | 'pull' = 'initial') => {
     if (!token) return;
@@ -87,8 +131,17 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
         case 'Report trial balance':
           setTb((await getFinanceReportTrialBalance(token, preset)).data);
           break;
-        case 'Report profit and loss':
-          setPnl((await getFinanceReportProfitAndLoss(token, preset)).data);
+        case 'Report profit and loss': {
+          const [pnlRes, siteRes] = await Promise.all([
+            getFinanceReportProfitAndLoss(token, preset, undefined, undefined, pnlSiteIdParam),
+            getFinanceReportSitePerformance(token, preset),
+          ]);
+          setPnl(pnlRes.data);
+          setSitePerf(siteRes.data);
+          break;
+        }
+        case 'Report site performance':
+          setSitePerf((await getFinanceReportSitePerformance(token, preset)).data);
           break;
         case 'Report balance sheet':
           setBs((await getFinanceReportBalanceSheet(token)).data);
@@ -99,6 +152,22 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
         case 'Report supplier WHT monthly':
           setWht((await getFinanceReportSupplierWhtMonthly(token, whtYear)).data);
           break;
+        case 'Report budget vs actual': {
+          const listRes = await getFinanceBudgetList(token);
+          const list = listRes.data.budgets ?? [];
+          setBudgetList(list);
+          const pick =
+            selectedBudgetId && list.some((b) => b.id === selectedBudgetId)
+              ? selectedBudgetId
+              : list.find((b) => b.status === 'active')?.id ?? list[0]?.id ?? null;
+          setSelectedBudgetId(pick);
+          if (pick) {
+            setBudgetReport((await getFinanceBudgetVsActual(token, pick)).data);
+          } else {
+            setBudgetReport(null);
+          }
+          break;
+        }
         default:
           break;
       }
@@ -108,11 +177,63 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
       setLoading(false);
       setPullRefreshing(false);
     }
-  }, [token, moduleRoute, preset, whtYear]);
+  }, [token, moduleRoute, preset, whtYear, selectedBudgetId, pnlSiteIdParam]);
+
+  const selectBudget = useCallback(
+    async (id: string) => {
+      if (!token) return;
+      setSelectedBudgetId(id);
+      setLoading(true);
+      setError(null);
+      try {
+        setBudgetReport((await getFinanceBudgetVsActual(token, id)).data);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to load budget.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [token],
+  );
 
   useEffect(() => {
     void load('initial');
   }, [load]);
+
+  const siteFilterChips =
+    moduleRoute === 'Report profit and loss' && sitePerf ? (
+      <View style={{ marginBottom: 12 }}>
+        <Text style={{ ...outfit('medium', 12), color: colors.textSecondary, marginBottom: 8 }}>Site scope</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {[
+            { id: '', label: 'All sites' },
+            { id: 'unallocated', label: 'Corporate' },
+            ...(sitePerf.sites ?? []).map((s) => ({
+              id: String(s.site_id),
+              label: s.site_name.length > 22 ? `${s.site_name.slice(0, 20)}…` : s.site_name,
+            })),
+          ].map((opt) => {
+            const selected = pnlSiteFilter === opt.id;
+            return (
+              <Pressable
+                key={opt.id || 'all'}
+                onPress={() => setPnlSiteFilter(opt.id)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: selected ? colors.primaryNavy : colors.surface,
+                  borderWidth: 0.5,
+                  borderColor: selected ? colors.primaryNavy : colors.borderSubtle,
+                }}
+              >
+                <Text style={{ ...outfit('medium', 11), color: selected ? '#fff' : colors.textPrimary }}>{opt.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    ) : null;
 
   const presetChips = (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
@@ -147,7 +268,7 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
       case 'Report trial balance':
         return { preset: periodPreset, from: tb?.from, to: tb?.to };
       case 'Report profit and loss':
-        return { preset: periodPreset, from: pnl?.from, to: pnl?.to };
+        return { preset: periodPreset, from: pnl?.from, to: pnl?.to, siteId: pnlSiteIdParam };
       case 'Report balance sheet':
         return { asOf: bs?.as_of };
       case 'Report cash flow':
@@ -157,9 +278,37 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
       default:
         return { preset: periodPreset };
     }
-  }, [moduleRoute, preset, tb, pnl, bs, cf, daily]);
+  }, [moduleRoute, preset, tb, pnl, bs, cf, daily, pnlSiteIdParam]);
 
   const pdfPath = useMemo(() => reportWebPdfPath(moduleRoute, pdfBuildParams), [moduleRoute, pdfBuildParams]);
+
+  const openPnlAccountActivity = (account: { id: string; code: string; name: string }) => {
+    setPnlActivityAccount({ id: account.id, label: `${account.code} ${account.name}`.trim() });
+  };
+
+  const renderPnlAccountRows = (
+    rows: ProfitAndLossReport['income'],
+    emptyLabel: string,
+  ) =>
+    rows.length === 0 ? (
+      <Text style={{ ...outfit('regular', 12), color: colors.textMuted, marginTop: 6 }}>{emptyLabel}</Text>
+    ) : (
+      rows.map((r) => (
+        <Pressable
+          key={r.account.id}
+          style={[styles.approvalLineRow, { marginTop: 6 }]}
+          onPress={() => openPnlAccountActivity(r.account)}
+        >
+          <Text style={styles.approvalType} numberOfLines={2}>
+            {r.account.code} {r.account.name}
+          </Text>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={styles.meta}>{fmtMoney(r.amount)}</Text>
+            <Text style={{ ...outfit('medium', 10), color: colors.accentTeal, marginTop: 2 }}>Journals</Text>
+          </View>
+        </Pressable>
+      ))
+    );
 
   let body: ReactNode = null;
 
@@ -313,12 +462,91 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
         ) : null}
       </>
     );
-  } else if (moduleRoute === 'Report profit and loss' && pnl) {
-    const trendPts = (pnl.trend ?? []).map((t) => ({ label: t.label, amount: t.net_profit }));
+  } else if (moduleRoute === 'Report site performance' && sitePerf) {
+    const sp = sitePerf;
+    const chartPts = [...sp.sites]
+      .sort((a, b) => b.totals.net_profit - a.totals.net_profit)
+      .slice(0, 8)
+      .map((s) => ({
+        label: (s.site_code || String(s.site_id)).slice(0, 8),
+        amount: s.totals.net_profit,
+      }));
     body = (
       <>
         <Text style={{ ...outfit('medium', 11), color: colors.textMuted }}>
-          {pnl.from} → {pnl.to}
+          {sp.from} → {sp.to} · Company #{sp.company_id}
+        </Text>
+        <Text style={{ ...outfit('regular', 11), color: colors.textMuted, marginTop: 6 }}>
+          Use YTD for historic bulk-imported data. Tap a site for profit & loss detail; tap account lines there for journal breakdown.
+        </Text>
+        <View style={{ marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+          <View style={{ flex: 1, minWidth: 140, padding: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 0.5, borderColor: colors.borderSubtle }}>
+            <Text style={{ ...outfit('regular', 12), color: colors.textSecondary }}>Company net profit</Text>
+            <Text style={{ ...outfit('medium', 18), color: colors.primaryNavy, marginTop: 4 }}>{fmtMoney(sp.company.totals.net_profit)}</Text>
+          </View>
+          <View style={{ flex: 1, minWidth: 140, padding: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 0.5, borderColor: colors.borderSubtle }}>
+            <Text style={{ ...outfit('regular', 12), color: colors.textSecondary }}>Company income</Text>
+            <Text style={{ ...outfit('medium', 18), color: colors.primaryNavy, marginTop: 4 }}>{fmtMoney(sp.company.totals.income)}</Text>
+          </View>
+        </View>
+        {chartPts.length > 0 ? (
+          <>
+            <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, marginTop: 22 }}>Top sites by net profit</Text>
+            <View style={{ marginTop: 10 }}>
+              <SimpleBarChart points={chartPts} barColor={colors.accentTeal} valueMode="money" />
+            </View>
+          </>
+        ) : null}
+        <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, marginTop: 22 }}>By site ({sp.sites.length})</Text>
+        {sp.sites.map((row) => (
+          <Pressable
+            key={row.site_id}
+            style={[styles.approvalCard, { marginTop: 10 }]}
+            onPress={() => onNavigateToProfitAndLoss?.(String(row.site_id), preset)}
+            disabled={!onNavigateToProfitAndLoss}
+          >
+            <View style={styles.approvalHeader}>
+              <Text style={styles.approvalId} numberOfLines={2}>
+                {row.site_name}
+              </Text>
+              <Text style={styles.approvalStatus}>{fmtMoney(row.totals.net_profit)}</Text>
+            </View>
+            <Text style={styles.approvalOwner}>
+              Income {fmtMoney(row.totals.income)} · COGS {fmtMoney(row.totals.cogs)} · Expenses {fmtMoney(row.totals.expenses)}
+            </Text>
+            <Text style={{ ...styles.meta, marginTop: 4 }}>{row.site_code}</Text>
+            {onNavigateToProfitAndLoss ? (
+              <Text style={{ ...outfit('medium', 11), color: colors.accentTeal, marginTop: 8 }}>View profit & loss →</Text>
+            ) : null}
+          </Pressable>
+        ))}
+        <Pressable
+          style={[styles.approvalLineRow, { marginTop: 16 }]}
+          onPress={() => onNavigateToProfitAndLoss?.('unallocated', preset)}
+          disabled={!onNavigateToProfitAndLoss}
+        >
+          <Text style={styles.approvalType}>Unallocated / corporate</Text>
+          <Text style={styles.meta}>{fmtMoney(sp.unallocated.totals.net_profit)}</Text>
+        </Pressable>
+        {onNavigateToProfitAndLoss ? (
+          <Pressable style={{ marginTop: 12 }} onPress={() => onNavigateToProfitAndLoss('', preset)}>
+            <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>Company-wide profit & loss →</Text>
+          </Pressable>
+        ) : null}
+      </>
+    );
+  } else if (moduleRoute === 'Report profit and loss' && pnl) {
+    const trendPts = (pnl.trend ?? []).map((t) => ({ label: t.label, amount: t.net_profit }));
+    const siteLabel =
+      pnlSiteFilter === ''
+        ? 'All sites'
+        : pnlSiteFilter === 'unallocated'
+          ? 'Corporate only'
+          : sitePerf?.sites.find((s) => String(s.site_id) === pnlSiteFilter)?.site_name ?? `Site #${pnlSiteFilter}`;
+    body = (
+      <>
+        <Text style={{ ...outfit('medium', 11), color: colors.textMuted }}>
+          {pnl.from} → {pnl.to} · {siteLabel}
         </Text>
         <View style={{ marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
           <View style={{ flex: 1, minWidth: 140, padding: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 0.5, borderColor: colors.borderSubtle }}>
@@ -338,24 +566,15 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
             </View>
           </>
         ) : null}
-        <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, marginTop: 22 }}>Income ({fmtMoney(pnl.totals.income)})</Text>
-        {pnl.income.slice(0, 40).map((r) => (
-          <View key={r.account.id} style={[styles.approvalLineRow, { marginTop: 6 }]}>
-            <Text style={styles.approvalType} numberOfLines={2}>
-              {r.account.code} {r.account.name}
-            </Text>
-            <Text style={styles.meta}>{fmtMoney(r.amount)}</Text>
-          </View>
-        ))}
+        <Text style={{ ...outfit('regular', 11), color: colors.textMuted, marginTop: 8 }}>
+          Tap an account to see posted journal lines behind the amount.
+        </Text>
+        <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, marginTop: 18 }}>Income ({fmtMoney(pnl.totals.income)})</Text>
+        {renderPnlAccountRows(pnl.income.slice(0, 40), 'No income accounts in this period.')}
+        <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, marginTop: 16 }}>COGS ({fmtMoney(pnl.totals.cogs)})</Text>
+        {renderPnlAccountRows(pnl.cogs.slice(0, 40), 'No COGS accounts in this period.')}
         <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, marginTop: 16 }}>Expenses ({fmtMoney(pnl.totals.expenses)})</Text>
-        {pnl.expenses.slice(0, 40).map((r) => (
-          <View key={r.account.id} style={[styles.approvalLineRow, { marginTop: 6 }]}>
-            <Text style={styles.approvalType} numberOfLines={2}>
-              {r.account.code} {r.account.name}
-            </Text>
-            <Text style={styles.meta}>{fmtMoney(r.amount)}</Text>
-          </View>
-        ))}
+        {renderPnlAccountRows(pnl.expenses.slice(0, 40), 'No expense accounts in this period.')}
       </>
     );
   } else if (moduleRoute === 'Report balance sheet' && bs) {
@@ -470,20 +689,117 @@ export function FinanceReportsPanel({ moduleRoute, webPath, onOpenCustomerInvoic
         ))}
       </>
     );
+  } else if (moduleRoute === 'Report budget vs actual') {
+    if (budgetList.length === 0 && !budgetReport) {
+      body = (
+        <View style={styles.emptyStateCard}>
+          <Text style={styles.emptyStateTitle}>No budgets</Text>
+          <Text style={styles.emptyStateText}>Create and activate a budget in the web ERP under Accounting setup → Budgets.</Text>
+        </View>
+      );
+    } else if (budgetReport) {
+      const br = budgetReport;
+      body = (
+        <>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+            {budgetList.map((b) => {
+              const selected = b.id === selectedBudgetId;
+              return (
+                <Pressable
+                  key={b.id}
+                  onPress={() => void selectBudget(b.id)}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: selected ? colors.primaryNavy : colors.surface,
+                    borderWidth: 0.5,
+                    borderColor: selected ? colors.primaryNavy : colors.borderSubtle,
+                    maxWidth: '100%',
+                  }}
+                >
+                  <Text style={{ ...outfit('medium', 11), color: selected ? '#fff' : colors.textPrimary }} numberOfLines={2}>
+                    {b.name} ({b.fiscal_year})
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={{ ...outfit('medium', 11), color: colors.textMuted }}>
+            {br.budget.scope_label} · {br.period.from} → {br.as_of}
+          </Text>
+          <View style={{ marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            <View style={{ flex: 1, minWidth: 140, padding: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 0.5, borderColor: colors.borderSubtle }}>
+              <Text style={{ ...outfit('regular', 12), color: colors.textSecondary }}>Annual budget</Text>
+              <Text style={{ ...outfit('medium', 18), color: colors.primaryNavy, marginTop: 4 }}>{fmtMoney(br.totals.budget)}</Text>
+            </View>
+            <View style={{ flex: 1, minWidth: 140, padding: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 0.5, borderColor: colors.borderSubtle }}>
+              <Text style={{ ...outfit('regular', 12), color: colors.textSecondary }}>YTD actual</Text>
+              <Text style={{ ...outfit('medium', 18), color: colors.primaryNavy, marginTop: 4 }}>{fmtMoney(br.totals.actual)}</Text>
+            </View>
+            <View style={{ flex: 1, minWidth: 140, padding: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 0.5, borderColor: colors.borderSubtle }}>
+              <Text style={{ ...outfit('regular', 12), color: colors.textSecondary }}>Available</Text>
+              <Text style={{ ...outfit('medium', 18), color: br.totals.available < 0 ? colors.trendDown : colors.primaryNavy, marginTop: 4 }}>
+                {fmtMoney(br.totals.available)}
+              </Text>
+            </View>
+          </View>
+          {br.totals.committed > 0 ? (
+            <Text style={{ ...outfit('regular', 12), color: colors.textMuted, marginTop: 10 }}>
+              Committed (pending requisitions): {fmtMoney(br.totals.committed)}
+            </Text>
+          ) : null}
+          <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, marginTop: 22 }}>By account</Text>
+          {br.rows.map((r) => (
+            <View key={r.account_id} style={[styles.approvalLineRow, { marginTop: 8 }]}>
+              <Text style={styles.approvalType} numberOfLines={2}>
+                {r.code} {r.name}
+              </Text>
+              <Text style={styles.meta}>
+                {fmtMoney(r.actual)} / {fmtMoney(r.budget)}
+                {r.pct_used != null ? ` (${r.pct_used}%)` : ''}
+              </Text>
+            </View>
+          ))}
+        </>
+      );
+    }
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
-      refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void load('pull')} tintColor={colors.accentTeal} />}
-    >
-      <Text style={{ ...outfit('regular', 13), color: colors.textSecondary, marginBottom: 12 }}>
-        Snapshot for quick decisions; use the web ERP for official printing and detailed filters.
-      </Text>
-      {showPreset ? presetChips : null}
-      {body}
-      <ReportWebExportPanel webPath={webPathTrimmed || undefined} pdfPathOrUrl={pdfPath ?? undefined} />
-    </ScrollView>
+    <>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
+        refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void load('pull')} tintColor={colors.accentTeal} />}
+      >
+        <Text style={{ ...outfit('regular', 13), color: colors.textSecondary, marginBottom: 12 }}>
+          Snapshot for quick decisions; use the web ERP for official printing and detailed filters.
+        </Text>
+        {showPreset ? presetChips : null}
+        {siteFilterChips}
+        {body}
+        <ReportWebExportPanel webPath={webPathTrimmed || undefined} pdfPathOrUrl={pdfPath ?? undefined} />
+      </ScrollView>
+      <PnLAccountActivityModal
+        visible={pnlActivityAccount !== null}
+        token={token}
+        accountId={pnlActivityAccount?.id ?? ''}
+        accountLabel={pnlActivityAccount?.label ?? ''}
+        preset={(pnl?.preset ?? preset) as FinanceReportPreset}
+        from={pnl?.from}
+        to={pnl?.to}
+        siteId={pnlSiteIdParam ?? null}
+        onClose={() => setPnlActivityAccount(null)}
+        onOpenJournalEntry={
+          onOpenJournalEntry
+            ? (id, hint) => {
+                setPnlActivityAccount(null);
+                onOpenJournalEntry(id, hint);
+              }
+            : undefined
+        }
+      />
+    </>
   );
 }

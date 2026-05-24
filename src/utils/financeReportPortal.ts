@@ -5,9 +5,11 @@ export const FINANCE_REPORT_MOBILE_MODULES = [
   'Daily invoice report',
   'Report trial balance',
   'Report profit and loss',
+  'Report site performance',
   'Report balance sheet',
   'Report cash flow',
   'Report supplier WHT monthly',
+  'Report budget vs actual',
 ] as const;
 
 export type FinanceReportMobileModule = (typeof FINANCE_REPORT_MOBILE_MODULES)[number];

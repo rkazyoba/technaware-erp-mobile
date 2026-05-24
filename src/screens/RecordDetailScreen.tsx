@@ -35,6 +35,8 @@ import {
   ProformaInvoiceOverview,
   SupplierInvoiceOverview,
 } from '../components/finance/FinanceDetailPresentation';
+import { StaffFinanceApprovalPanel } from '../components/finance/StaffFinanceApprovalPanel';
+import { StaffFinanceReadOnlyField } from '../components/finance/StaffFinanceReadOnlyField';
 import { WebPortalSurfacePanel } from '../components/WebPortalSurfacePanel';
 import { StatusBadge } from '../components/StatusBadge';
 import { TopBar, TopBarIconButton } from '../components/TopBar';
@@ -87,6 +89,7 @@ function detailTabDefs(kind: RecordDetailParams['detailKind']): { id: string; la
     case 'finance_proforma_invoice':
     case 'finance_supplier_invoice':
     case 'finance_payment_voucher':
+    case 'finance_petty_cash_request':
       return [
         { id: TAB_OVERVIEW, label: 'Overview' },
         { id: TAB_LINES, label: 'Lines' },
@@ -222,6 +225,7 @@ function hasLoadedBody(kind: RecordDetailParams['detailKind'], sp: ReturnType<ty
     case 'finance_proforma_invoice':
     case 'finance_payment':
     case 'finance_payment_voucher':
+    case 'finance_petty_cash_request':
     case 'finance_supplier_invoice':
       return false;
     case 'accounting_currency':
@@ -376,6 +380,7 @@ export function RecordDetailScreen() {
     setModuleLoading,
     markOneNotificationRead,
     loadNotifications,
+    onPortalNotify,
     portal,
     canViewMobileRequisitions,
     canViewMobilePurchaseRfqs,
@@ -792,7 +797,10 @@ export function RecordDetailScreen() {
     if (detailKind === 'finance_payment' && financeDetail.payment) {
       return financePaymentHero(financeDetail.payment);
     }
-    if (detailKind === 'finance_payment_voucher' && financeDetail.paymentVoucher) {
+    if (
+      (detailKind === 'finance_payment_voucher' || detailKind === 'finance_petty_cash_request') &&
+      financeDetail.paymentVoucher
+    ) {
       return financePaymentVoucherHero(financeDetail.paymentVoucher);
     }
     if (detailKind === 'finance_supplier_invoice' && financeDetail.supplierInvoice) {
@@ -808,7 +816,12 @@ export function RecordDetailScreen() {
     if (detailKind === 'finance_payment' && financeDetail.payment) {
       return financeDetail.payment.invoice_ref ?? financeDetail.payment.ref;
     }
-    if (detailKind === 'finance_payment_voucher' && financeDetail.paymentVoucher) return financeDetail.paymentVoucher.ref;
+    if (
+      (detailKind === 'finance_payment_voucher' || detailKind === 'finance_petty_cash_request') &&
+      financeDetail.paymentVoucher
+    ) {
+      return financeDetail.paymentVoucher.ref;
+    }
     if (detailKind === 'finance_supplier_invoice' && financeDetail.supplierInvoice) return financeDetail.supplierInvoice.ref;
     if (detailKind === 'accounting_currency' && accountingDetail.currency) return accountingDetail.currency.code;
     if (detailKind === 'accounting_exchange_rate_week' && accountingDetail.exchangeWeek) {
@@ -990,7 +1003,8 @@ export function RecordDetailScreen() {
               ? financeDetail.proformaInvoice.status_label
               : detailKind === 'finance_payment' && financeDetail.payment
                 ? financeDetail.payment.status_label
-                : detailKind === 'finance_payment_voucher' && financeDetail.paymentVoucher
+                : (detailKind === 'finance_payment_voucher' || detailKind === 'finance_petty_cash_request') &&
+                    financeDetail.paymentVoucher
                   ? financeDetail.paymentVoucher.status_label
                   : detailKind === 'finance_supplier_invoice' && financeDetail.supplierInvoice
                     ? financeDetail.supplierInvoice.status_label
@@ -1146,6 +1160,8 @@ export function RecordDetailScreen() {
                       ? 'PAYMENT'
                       : detailKind === 'finance_payment_voucher'
                         ? 'PAYMENT VOUCHER'
+                        : detailKind === 'finance_petty_cash_request'
+                          ? 'PETTY CASH'
                         : 'SUPPLIER INVOICE'
                 : accountingDetail.isAccountingDetail && accountingDetail.loaded
                   ? 'ACCOUNTING'
@@ -2052,6 +2068,22 @@ export function RecordDetailScreen() {
                 <FinanceLinesSection lines={financeDetail.customerInvoice.lines} />
               </View>
             ) : null}
+            {financeDetail.customerInvoice.can_record_payment &&
+            (!activeDetailTabs || detailTab === TAB_OVERVIEW) ? (
+              <Pressable
+                style={[styles.primaryAction, { marginTop: 12 }]}
+                onPress={() =>
+                  navigation.navigate('CustomerPaymentRecord', {
+                    invoiceId: recordId,
+                    invoiceRef: financeDetail.customerInvoice!.ref,
+                    dueAmount: financeDetail.customerInvoice!.payment?.due_amount ?? null,
+                    currency: financeDetail.customerInvoice!.currency,
+                  })
+                }
+              >
+                <Text style={styles.primaryActionText}>Record customer receipt</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
 
@@ -2075,7 +2107,143 @@ export function RecordDetailScreen() {
           </View>
         ) : null}
 
-        {detailKind === 'finance_payment_voucher' && financeDetail.paymentVoucher ? (
+        {detailKind === 'finance_petty_cash_request' && financeDetail.pettyCash ? (
+          <View style={{ marginTop: 8, paddingHorizontal: 4 }}>
+            {financeDetail.pettyCash.request_type_label ? (
+              <Text style={{ ...outfit('medium', 13), color: colors.textSecondary, marginBottom: 4 }}>
+                {financeDetail.pettyCash.request_type_label}
+                {financeDetail.pettyCash.request_category_label
+                  ? ` · ${financeDetail.pettyCash.request_category_label}`
+                  : ''}
+                {financeDetail.pettyCash.currency ? ` · ${financeDetail.pettyCash.currency}` : ''}
+              </Text>
+            ) : null}
+            <Text style={{ ...outfit('regular', 13), color: colors.textPrimary }}>{financeDetail.pettyCash.status_label}</Text>
+            {financeDetail.pettyCash.requested_by_label ? (
+              <StaffFinanceReadOnlyField label="Requested by" value={financeDetail.pettyCash.requested_by_label} />
+            ) : null}
+            {financeDetail.pettyCash.site_label ? (
+              <StaffFinanceReadOnlyField label="Site" value={financeDetail.pettyCash.site_label} />
+            ) : null}
+            {financeDetail.pettyCash.store_label ? (
+              <StaffFinanceReadOnlyField label="Store" value={financeDetail.pettyCash.store_label} />
+            ) : null}
+            {financeDetail.pettyCash.payment_method_label ? (
+              <StaffFinanceReadOnlyField label="Payment method" value={financeDetail.pettyCash.payment_method_label} />
+            ) : null}
+            {financeDetail.pettyCash.requested_amount != null ? (
+              <StaffFinanceReadOnlyField
+                label="Requested amount"
+                value={fmtMoney(financeDetail.pettyCash.requested_amount, financeDetail.pettyCash.currency)}
+              />
+            ) : null}
+            {financeDetail.pettyCash.total_spent != null ? (
+              <StaffFinanceReadOnlyField
+                label="Total spent"
+                value={fmtMoney(financeDetail.pettyCash.total_spent, financeDetail.pettyCash.currency)}
+              />
+            ) : null}
+            {financeDetail.pettyCash.outstanding_amount != null ? (
+              <StaffFinanceReadOnlyField
+                label="Outstanding"
+                value={fmtMoney(financeDetail.pettyCash.outstanding_amount, financeDetail.pettyCash.currency)}
+              />
+            ) : null}
+            {financeDetail.pettyCash.refund_from_staff != null && financeDetail.pettyCash.refund_from_staff > 0 ? (
+              <StaffFinanceReadOnlyField
+                label="Refund from staff"
+                value={fmtMoney(financeDetail.pettyCash.refund_from_staff, financeDetail.pettyCash.currency)}
+              />
+            ) : null}
+            {financeDetail.pettyCash.refund_to_staff != null && financeDetail.pettyCash.refund_to_staff > 0 ? (
+              <StaffFinanceReadOnlyField
+                label="Refund to staff"
+                value={fmtMoney(financeDetail.pettyCash.refund_to_staff, financeDetail.pettyCash.currency)}
+              />
+            ) : null}
+            {financeDetail.pettyCash.retired_date ? (
+              <StaffFinanceReadOnlyField label="Retired date" value={financeDetail.pettyCash.retired_date.slice(0, 10)} />
+            ) : null}
+            {financeDetail.pettyCash.debit_account ? (
+              <StaffFinanceReadOnlyField
+                label="Expense GL"
+                value={`${financeDetail.pettyCash.debit_account.code} — ${financeDetail.pettyCash.debit_account.name}`}
+              />
+            ) : null}
+            {financeDetail.pettyCash.retirement_notes ? (
+              <StaffFinanceReadOnlyField label="Retirement notes" value={financeDetail.pettyCash.retirement_notes} />
+            ) : null}
+            {financeDetail.pettyCash.attachments && financeDetail.pettyCash.attachments.length > 0 ? (
+              <View style={{ marginTop: 10 }}>
+                <Text style={{ ...outfit('medium', 13), color: colors.textPrimary }}>Receipts</Text>
+                {financeDetail.pettyCash.attachments.map((att) => (
+                  <Pressable key={att.id} onPress={() => void Linking.openURL(att.download_url)} style={{ marginTop: 6 }}>
+                    <Text style={{ ...outfit('medium', 13), color: colors.accentTeal }}>{att.name}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            {financeDetail.pettyCash.lines && financeDetail.pettyCash.lines.length > 0 ? (
+              <View style={{ marginTop: 10 }}>
+                <Text style={{ ...outfit('medium', 13), color: colors.textPrimary }}>Lines</Text>
+                {financeDetail.pettyCash.lines.map((line) => (
+                  <Text key={line.id} style={{ ...outfit('regular', 13), color: colors.textSecondary, marginTop: 4 }}>
+                    {line.line_description} — {line.amount.toLocaleString()} {line.currency}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+            {financeDetail.pettyCash.can_edit &&
+            financeDetail.pettyCash.request_type === 'imprest_retirement' ? (
+              <Pressable
+                style={[styles.detailsButton, { marginTop: 12 }]}
+                onPress={() =>
+                  navigation.navigate('StaffFinanceRetirementWorkspace', {
+                    retirementId: recordId,
+                    imprestId: financeDetail.pettyCash?.imprest_parent_id ?? undefined,
+                  })
+                }
+              >
+                <Text style={styles.detailsButtonText}>Continue editing</Text>
+              </Pressable>
+            ) : null}
+            {financeDetail.pettyCash.can_edit &&
+            (financeDetail.pettyCash.request_type === 'imprest' ||
+              financeDetail.pettyCash.request_type === 'expense_claim') ? (
+              <Pressable
+                style={[styles.detailsButton, { marginTop: 12 }]}
+                onPress={() =>
+                  navigation.navigate('StaffFinanceRequestWorkspace', {
+                    requestId: recordId,
+                    requestType: financeDetail.pettyCash!.request_type as 'imprest' | 'expense_claim',
+                    moduleRoute,
+                  })
+                }
+              >
+                <Text style={styles.detailsButtonText}>Continue editing</Text>
+              </Pressable>
+            ) : null}
+            {financeDetail.pettyCash.can_submit_retirement ? (
+              <Pressable
+                style={[styles.primaryAction, { marginTop: 12 }]}
+                onPress={() => navigation.navigate('PettyCashRetirement', { recordId })}
+              >
+                <Text style={styles.primaryActionText}>Start imprest retirement</Text>
+              </Pressable>
+            ) : null}
+            {!financeDetail.pettyCash.viewer_is_requester && financeDetail.pettyCash.approval_ui ? (
+              <StaffFinanceApprovalPanel
+                token={token}
+                recordId={recordId}
+                detail={financeDetail.pettyCash}
+                onUpdated={financeDetail.applyPettyCashDetail}
+                onNotify={onPortalNotify}
+              />
+            ) : null}
+          </View>
+        ) : null}
+
+        {(detailKind === 'finance_payment_voucher' || detailKind === 'finance_petty_cash_request') && financeDetail.paymentVoucher ? (
           <View style={{ marginTop: 8 }}>
             {activeDetailTabs ? <DetailTabBar tabs={activeDetailTabs} active={detailTab} onChange={setDetailTab} /> : null}
             {(!activeDetailTabs || detailTab === TAB_OVERVIEW) ? <PaymentVoucherOverview d={financeDetail.paymentVoucher} /> : null}

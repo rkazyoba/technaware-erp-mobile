@@ -20,6 +20,12 @@ import { StoreMovementLinesScreen } from '../screens/StoreMovementLinesScreen';
 import { DeliveryNoteHeaderScreen } from '../screens/DeliveryNoteHeaderScreen';
 import { DeliveryNoteLinesScreen } from '../screens/DeliveryNoteLinesScreen';
 import { LeaveRequestFormScreen } from '../screens/LeaveRequestFormScreen';
+import { PettyCashRequestFormScreen } from '../screens/PettyCashRequestFormScreen';
+import { PaymentVoucherFormScreen } from '../screens/PaymentVoucherFormScreen';
+import { CustomerPaymentRecordScreen } from '../screens/CustomerPaymentRecordScreen';
+import { PettyCashRetirementScreen } from '../screens/PettyCashRetirementScreen';
+import { StaffFinanceRetirementWorkspaceScreen } from '../screens/StaffFinanceRetirementWorkspaceScreen';
+import { StaffFinanceRequestWorkspaceScreen } from '../screens/StaffFinanceRequestWorkspaceScreen';
 import { PoGrnHeaderScreen } from '../screens/PoGrnHeaderScreen';
 import { PoReceiptWorkspaceScreen } from '../screens/PoReceiptWorkspaceScreen';
 import { NonPoGrnHeaderScreen } from '../screens/NonPoGrnHeaderScreen';
@@ -49,6 +55,12 @@ function ModulesNavigator() {
       <ModulesStack.Screen name="DeliveryNoteHeader" component={DeliveryNoteHeaderScreen} />
       <ModulesStack.Screen name="DeliveryNoteLines" component={DeliveryNoteLinesScreen} />
       <ModulesStack.Screen name="LeaveRequestForm" component={LeaveRequestFormScreen} />
+      <ModulesStack.Screen name="PettyCashRequestForm" component={PettyCashRequestFormScreen} />
+      <ModulesStack.Screen name="PaymentVoucherForm" component={PaymentVoucherFormScreen} />
+      <ModulesStack.Screen name="CustomerPaymentRecord" component={CustomerPaymentRecordScreen} />
+      <ModulesStack.Screen name="PettyCashRetirement" component={PettyCashRetirementScreen} />
+      <ModulesStack.Screen name="StaffFinanceRetirementWorkspace" component={StaffFinanceRetirementWorkspaceScreen} />
+      <ModulesStack.Screen name="StaffFinanceRequestWorkspace" component={StaffFinanceRequestWorkspaceScreen} />
       <ModulesStack.Screen name="PoGrnHeader" component={PoGrnHeaderScreen} />
       <ModulesStack.Screen name="PoReceiptWorkspace" component={PoReceiptWorkspaceScreen} />
       <ModulesStack.Screen name="NonPoGrnHeader" component={NonPoGrnHeaderScreen} />

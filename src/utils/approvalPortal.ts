@@ -18,6 +18,8 @@ export const APPROVAL_KIND_META: Record<string, ApprovalKindMeta> = {
   invoice: { icon: 'cash-outline', colorFamily: 'amber' },
   proforma_invoice: { icon: 'document-outline', colorFamily: 'amber' },
   payment_voucher: { icon: 'wallet-outline', colorFamily: 'slate' },
+  petty_cash_site: { icon: 'people-outline', colorFamily: 'amber' },
+  petty_cash_finance: { icon: 'wallet-outline', colorFamily: 'amber' },
   supplier_invoice: { icon: 'receipt-outline', colorFamily: 'slate' },
   store_issue: { icon: 'log-out-outline', colorFamily: 'navy' },
   store_receipt: { icon: 'log-in-outline', colorFamily: 'navy' },

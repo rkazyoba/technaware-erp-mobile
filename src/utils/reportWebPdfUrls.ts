@@ -9,6 +9,7 @@ export type ReportPdfBuildParams = {
   asOf?: string;
   storeId?: string;
   year?: number;
+  siteId?: string | null;
 };
 
 function qs(params: Record<string, string | number | undefined>): string {
@@ -40,6 +41,7 @@ export function reportWebPdfPath(
         preset: params.preset ?? 'mtd',
         from: params.preset === 'custom' ? params.from : undefined,
         to: params.preset === 'custom' ? params.to : undefined,
+        site_id: params.siteId ?? undefined,
       })}`;
     case 'Report balance sheet':
       return `/accounting/reports/balance-sheet/pdf${qs({ as_of: params.asOf })}`;

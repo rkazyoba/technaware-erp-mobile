@@ -54,6 +54,10 @@ export const MODULE_ICON: Record<string, IonGlyph> = {
   finance_proforma_invoices: 'file-tray-outline',
   finance_payments: 'cash-outline',
   finance_payment_vouchers: 'ticket-outline',
+  finance_petty_cash_requests: 'wallet-outline',
+  finance_staff_imprest: 'wallet-outline',
+  finance_expense_claims: 'receipt-outline',
+  finance_imprest_retirements: 'document-text-outline',
   finance_supplier_invoices: 'receipt-outline',
 
   accounting_currencies: 'business-outline',
@@ -127,6 +131,10 @@ export function colorFamilyForSurfaceId(id: string): ModuleColorFamily {
     finance_proforma_invoices: 'purple',
     finance_payments: 'teal',
     finance_payment_vouchers: 'amber',
+    finance_petty_cash_requests: 'amber',
+    finance_staff_imprest: 'amber',
+    finance_expense_claims: 'teal',
+    finance_imprest_retirements: 'navy',
     finance_supplier_invoices: 'slate',
 
     accounting_currencies: 'navy',

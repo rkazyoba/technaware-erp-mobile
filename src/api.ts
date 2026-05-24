@@ -554,6 +554,8 @@ export type LogisticsDocListItem = {
   department_name?: string;
   non_po_id?: string;
   order_type?: string;
+  /** Set on approved non-PO receipts when a GL journal exists. */
+  ledger_posted?: boolean;
 };
 
 export type LogisticsDocLine = {
@@ -768,14 +770,18 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<ApiEnvel
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  const { headers: rawHeaders, signal: _ignoreSignal, ...restInit } = init ?? {};
-  const merged = new Headers({
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-  });
+  const { headers: rawHeaders, signal: _ignoreSignal, body, ...restInit } = init ?? {};
+  const merged = new Headers({ Accept: 'application/json' });
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+  if (!isFormData) {
+    merged.set('Content-Type', 'application/json');
+  }
   if (rawHeaders) {
     const extra = new Headers(rawHeaders as HeadersInit);
     extra.forEach((value, key) => {
+      if (isFormData && key.toLowerCase() === 'content-type') {
+        return;
+      }
       merged.set(key, value);
     });
   }
@@ -783,6 +789,7 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<ApiEnvel
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...restInit,
+      body,
       headers: merged,
       signal: controller.signal,
     });
@@ -2057,6 +2064,30 @@ export type CustomerInvoiceDetail = CustomerInvoiceListItem & {
   subtotal_excl_vat?: number | null;
   total_vat?: number | null;
   lines: FinanceCommercialLine[];
+  ledger_posted?: boolean;
+  ledger_reversed?: boolean;
+  can_record_payment?: boolean;
+  payment?: {
+    id: string;
+    paid_amount?: number | null;
+    due_amount?: number | null;
+    status: string;
+  };
+};
+
+export type ReceiptBankOption = {
+  id: string;
+  label: string;
+  currency: string;
+};
+
+export type RecordInvoicePaymentResult = {
+  payment_id: string;
+  paid_amount: number;
+  due_amount: number;
+  status: string;
+  invoice_status: string;
+  gl_queued: boolean;
 };
 
 export type ProformaInvoiceListItem = {
@@ -2117,8 +2148,17 @@ export type PaymentVoucherListItem = {
 
 export type PaymentVoucherDetail = PaymentVoucherListItem & {
   approved_date?: string | null;
+  voucher_purpose?: string | null;
+  ledger_posted?: boolean;
+  journal_entry_id?: string | null;
   lines: Array<{
     id: string;
+    payee_name?: string;
+    account_no?: string;
+    payment_category?: number;
+    pay_to?: number;
+    net_pay?: number | null;
+    total_pay?: number | null;
     description: string;
     amount?: number | null;
   }>;
@@ -2164,6 +2204,30 @@ export function getCustomerInvoiceDetail(token: string, id: string) {
   return request<CustomerInvoiceDetail>(`/finance/invoices/${encodeURIComponent(id)}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getFinanceReceiptBanks(token: string) {
+  return request<{ banks: ReceiptBankOption[] }>(`/finance/receipt-banks`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function recordCustomerInvoicePayment(
+  token: string,
+  invoiceId: string,
+  body: {
+    amount: number;
+    payment_reference?: string;
+    receipt_bank_id?: number;
+    settle_in_full?: boolean;
+  },
+) {
+  return request<RecordInvoicePaymentResult>(`/finance/invoices/${encodeURIComponent(invoiceId)}/record-payment`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
 }
 
@@ -2215,6 +2279,392 @@ export function getPaymentVoucherDetail(token: string, id: string) {
   return request<PaymentVoucherDetail>(`/finance/payment-vouchers/${encodeURIComponent(id)}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export type PettyCashPaymentMethod = 0 | 1 | 2 | 3;
+
+export type PettyCashRequestListItem = {
+  id: string;
+  ref: string;
+  document_no?: string;
+  description: string;
+  request_type?: 'imprest' | 'expense_claim' | 'imprest_retirement' | string;
+  workflow_status?: string;
+  status_label: string;
+  requested_date?: string | null;
+  prepared_date?: string | null;
+  total_amount?: number | null;
+  can_submit_retirement?: boolean;
+  imprest_retirement_id?: string | null;
+  imprest_parent_id?: string | null;
+};
+
+export type PettyCashRequestCategory =
+  | 'training'
+  | 'medical'
+  | 'travel'
+  | 'staff_welfare'
+  | 'general';
+
+export type PettyCashRequestLineInput = {
+  line_description: string;
+  amount: number;
+  currency?: string;
+};
+
+export type PaymentVoucherLineInput = {
+  payee_name: string;
+  account_no?: string;
+  payment_category: number;
+  pay_to: number;
+  net_pay: number;
+  advance_amount?: number;
+  supplier_id?: number;
+};
+
+export type PettyCashAttachmentItem = {
+  id: string;
+  kind: string;
+  name: string;
+  download_url: string;
+};
+
+export type PettyCashRequestDetail = PettyCashRequestListItem & {
+  request_type_label?: string;
+  request_category?: string;
+  request_category_label?: string;
+  currency?: string;
+  payment_method: number;
+  finance_approved_date?: string | null;
+  retirement_notes?: string | null;
+  retirement_submitted_at?: string | null;
+  rejection_reason?: string | null;
+  ledger_posted?: boolean;
+  can_edit?: boolean;
+  can_submit?: boolean;
+  imprest_parent_ref?: string | null;
+  requested_amount?: number | null;
+  total_spent?: number | null;
+  refund_from_staff?: number | null;
+  refund_to_staff?: number | null;
+  outstanding_amount?: number | null;
+  amount_in_word?: string | null;
+  payment_method_label?: string;
+  requested_by_label?: string;
+  site_id?: string | null;
+  store_id?: string | null;
+  site_label?: string | null;
+  store_label?: string | null;
+  viewer_is_requester?: boolean;
+  retired_date?: string | null;
+  debit_account?: { code: string; name: string } | null;
+  imprest_parent_debit_gl?: { code: string; name: string } | null;
+  approval_ui?: {
+    can_approve_site: boolean;
+    can_approve_finance: boolean;
+    can_reject: boolean;
+    requires_expense_gl: boolean;
+    imprest_auto_ledger: boolean;
+    imprest_employee_gl?: {
+      employee_code?: string;
+      employee_name?: string;
+      gl_code?: string;
+      gl_name?: string;
+      error?: string;
+    } | null;
+    gl_accounts?: Array<{ id: string; code: string; name: string }>;
+    petty_cash_pool_gl_code?: string;
+    payment_method_label?: string;
+  } | null;
+  attachments?: PettyCashAttachmentItem[];
+  lines: Array<{
+    id: string;
+    line_description: string;
+    currency: string;
+    amount: number;
+  }>;
+};
+
+export function getPettyCashRequests(
+  token: string,
+  page = 1,
+  perPage = 15,
+  opts?: { requestType?: 'imprest' | 'expense_claim' | 'imprest_retirement'; awaitingRetirement?: boolean },
+) {
+  const qs = new URLSearchParams(masterDataQs(page, perPage, ''));
+  if (opts?.requestType) qs.set('request_type', opts.requestType);
+  if (opts?.awaitingRetirement) qs.set('awaiting_retirement', '1');
+
+  return request<{ items: PettyCashRequestListItem[]; pagination: PaginationMeta }>(
+    `/finance/petty-cash-requests?${qs.toString()}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function getPettyCashRequestDetail(token: string, id: string) {
+  return request<PettyCashRequestDetail>(`/finance/petty-cash-requests/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export type StaffFinanceSiteOption = { id: string; label: string };
+export type StaffFinanceStoreOption = { id: string; site_id: string; label: string };
+
+export type StaffFinanceCreateContext = {
+  outstanding_total: number;
+  outstanding_items: Array<{ id: string; document_no: string; total_amount: number; currency: string }>;
+  default_site_id?: string | null;
+  default_store_id?: string | null;
+  sites?: StaffFinanceSiteOption[];
+  stores?: StaffFinanceStoreOption[];
+};
+
+export function getStaffFinanceCreateContext(token: string) {
+  return request<StaffFinanceCreateContext>('/finance/petty-cash-requests/create-context', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createStaffFinanceRequestHeader(
+  token: string,
+  payload: {
+    request_type: 'imprest' | 'expense_claim';
+    description: string;
+    request_category: PettyCashRequestCategory;
+    currency: string;
+    payment_method: PettyCashPaymentMethod;
+    site_id: number;
+    store_id: number;
+  },
+) {
+  return request<PettyCashRequestDetail>('/finance/petty-cash-requests/header', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateStaffFinanceHeader(
+  token: string,
+  requestId: string,
+  payload: {
+    description: string;
+    request_category: PettyCashRequestCategory;
+    currency: string;
+    payment_method: PettyCashPaymentMethod;
+    site_id?: number;
+    store_id?: number;
+  },
+) {
+  return request<PettyCashRequestDetail>(`/finance/petty-cash-requests/${encodeURIComponent(requestId)}/header`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createPettyCashRequest(
+  token: string,
+  payload: {
+    request_type: 'imprest' | 'expense_claim';
+    description: string;
+    request_category: PettyCashRequestCategory;
+    currency: string;
+    payment_method: PettyCashPaymentMethod;
+    submit?: boolean;
+    lines: PettyCashRequestLineInput[];
+  },
+  receiptUris: string[] = [],
+) {
+  const form = new FormData();
+  form.append('request_type', payload.request_type);
+  form.append('description', payload.description);
+  form.append('request_category', payload.request_category);
+  form.append('currency', payload.currency);
+  form.append('payment_method', String(payload.payment_method));
+  form.append('submit', payload.submit !== false ? '1' : '0');
+  form.append('lines', JSON.stringify(payload.lines));
+  receiptUris.forEach((uri, i) => {
+    form.append('attachments[]', {
+      uri,
+      name: `receipt-${i}.jpg`,
+      type: 'image/jpeg',
+    } as unknown as Blob);
+  });
+
+  return request<PettyCashRequestDetail>('/finance/petty-cash-requests', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+}
+
+export function beginStaffFinanceRetirement(token: string, imprestId: string) {
+  return request<PettyCashRequestDetail>(
+    `/finance/petty-cash-requests/${encodeURIComponent(imprestId)}/begin-retirement`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({}),
+    },
+  );
+}
+
+export function saveStaffFinanceLine(
+  token: string,
+  requestId: string,
+  payload: { line_description: string; amount: number; line_id?: string },
+) {
+  return request<PettyCashRequestDetail>(`/finance/petty-cash-requests/${encodeURIComponent(requestId)}/lines`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteStaffFinanceLine(token: string, requestId: string, lineId: string) {
+  return request<PettyCashRequestDetail>(
+    `/finance/petty-cash-requests/${encodeURIComponent(requestId)}/lines/${encodeURIComponent(lineId)}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function uploadStaffFinanceAttachments(token: string, requestId: string, fileUris: string[]) {
+  const form = new FormData();
+  fileUris.forEach((uri, i) => {
+    form.append('attachments[]', {
+      uri,
+      name: `document-${i}.jpg`,
+      type: 'image/jpeg',
+    } as unknown as Blob);
+  });
+
+  return request<PettyCashRequestDetail>(
+    `/finance/petty-cash-requests/${encodeURIComponent(requestId)}/attachments`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    },
+  );
+}
+
+export function updateStaffFinanceRetirementNotes(token: string, requestId: string, retirementNotes: string) {
+  return request<PettyCashRequestDetail>(`/finance/petty-cash-requests/${encodeURIComponent(requestId)}/header`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ retirement_notes: retirementNotes }),
+  });
+}
+
+export function updateStaffFinanceRetirementHeader(
+  token: string,
+  requestId: string,
+  payload: { retirement_notes?: string; retired_date: string },
+) {
+  return request<PettyCashRequestDetail>(`/finance/petty-cash-requests/${encodeURIComponent(requestId)}/header`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function submitStaffFinanceRequest(token: string, requestId: string) {
+  return request<PettyCashRequestDetail>(`/finance/petty-cash-requests/${encodeURIComponent(requestId)}/submit`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({}),
+  });
+}
+
+/** @deprecated Use beginStaffFinanceRetirement + workspace submit flow */
+export function submitPettyCashRetirement(
+  token: string,
+  id: string,
+  notes: string,
+  receiptUris: string[],
+) {
+  const form = new FormData();
+  form.append('notes', notes);
+  receiptUris.forEach((uri, i) => {
+    form.append('attachments[]', {
+      uri,
+      name: `receipt-${i}.jpg`,
+      type: 'image/jpeg',
+    } as unknown as Blob);
+  });
+
+  return request<PettyCashRequestDetail>(`/finance/petty-cash-requests/${encodeURIComponent(id)}/retirement`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+}
+
+export function approvePettyCashSite(token: string, id: string) {
+  return request<PettyCashRequestDetail>(`/finance/petty-cash-requests/${encodeURIComponent(id)}/approve-site`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({}),
+  });
+}
+
+export function approvePettyCashFinance(token: string, id: string, debitAccountId?: number) {
+  const body: { debit_account_id?: number } = {};
+  if (debitAccountId != null && debitAccountId > 0) {
+    body.debit_account_id = debitAccountId;
+  }
+  return request<PettyCashRequestDetail>(`/finance/petty-cash-requests/${encodeURIComponent(id)}/approve-finance`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function approvePettyCashRetirement(token: string, id: string, debitAccountId: number) {
+  return request<PettyCashRequestDetail>(`/finance/petty-cash-requests/${encodeURIComponent(id)}/approve-retirement`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ debit_account_id: debitAccountId }),
+  });
+}
+
+export function rejectPettyCashRequest(token: string, id: string, comment?: string) {
+  return request<PettyCashRequestDetail>(`/finance/petty-cash-requests/${encodeURIComponent(id)}/reject`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ comment: comment ?? '' }),
+  });
+}
+
+export function createPaymentVoucher(
+  token: string,
+  payload: {
+    description: string;
+    payment_method: PettyCashPaymentMethod;
+    submit?: boolean;
+    lines: PaymentVoucherLineInput[];
+  },
+) {
+  const form = new FormData();
+  form.append('description', payload.description);
+  form.append('payment_method', String(payload.payment_method));
+  form.append('submit', payload.submit !== false ? '1' : '0');
+  form.append('lines', JSON.stringify(payload.lines));
+
+  return request<PaymentVoucherDetail>('/finance/payment-vouchers', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
   });
 }
 
@@ -2599,11 +3049,63 @@ export type ProfitAndLossReport = {
   preset: string;
   from: string;
   to: string;
+  site_id?: string | null;
   income: Array<{ account: { id: string; code: string; name: string; account_type: string }; amount: number }>;
   cogs: Array<{ account: { id: string; code: string; name: string; account_type: string }; amount: number }>;
   expenses: Array<{ account: { id: string; code: string; name: string; account_type: string }; amount: number }>;
   totals: { income: number; cogs: number; expenses: number; gross_profit: number; net_profit: number };
   trend: Array<{ label: string; from: string; to: string; net_profit: number }>;
+};
+
+export type SitePerformanceTotals = {
+  income: number;
+  cogs: number;
+  expenses: number;
+  gross_profit: number;
+  net_profit: number;
+};
+
+export type SitePerformanceSiteRow = {
+  site_id: number;
+  site_code: string;
+  site_name: string;
+  totals: SitePerformanceTotals;
+};
+
+export type SitePerformanceReport = {
+  company_id: string;
+  preset: string;
+  from: string;
+  to: string;
+  sites: SitePerformanceSiteRow[];
+  unallocated: { totals: SitePerformanceTotals };
+  company: { totals: SitePerformanceTotals };
+};
+
+export type PnlAccountActivityLine = {
+  journal_entry_id: string;
+  entry_date: string;
+  reference: string;
+  journal_description: string;
+  source_module: string;
+  side: string;
+  amount: number;
+  signed_amount: number;
+  line_description: string;
+  site_id: number | null;
+  site_name: string | null;
+};
+
+export type PnlAccountActivityReport = {
+  company_id: string;
+  preset: string;
+  from: string;
+  to: string;
+  site_id?: string | null;
+  account: { id: string; code: string; name: string; account_type: string };
+  summary: { debit: number; credit: number; period_amount: number };
+  lines: PnlAccountActivityLine[];
+  truncated: boolean;
 };
 
 export type BalanceSheetReport = {
@@ -2685,9 +3187,48 @@ export function getFinanceReportTrialBalance(token: string, preset: FinanceRepor
   );
 }
 
-export function getFinanceReportProfitAndLoss(token: string, preset: FinanceReportPreset, from?: string, to?: string) {
+export function getFinanceReportProfitAndLoss(
+  token: string,
+  preset: FinanceReportPreset,
+  from?: string,
+  to?: string,
+  siteId?: string | null,
+) {
   return request<ProfitAndLossReport>(
-    `/finance/reports/profit-and-loss${financeReportQuery({ preset, from, to, include_trend: true })}`,
+    `/finance/reports/profit-and-loss${financeReportQuery({
+      preset,
+      from,
+      to,
+      include_trend: true,
+      site_id: siteId ?? undefined,
+    })}`,
+    { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
+  );
+}
+
+export function getFinanceReportSitePerformance(token: string, preset: FinanceReportPreset, from?: string, to?: string) {
+  return request<SitePerformanceReport>(
+    `/finance/reports/site-performance${financeReportQuery({ preset, from, to })}`,
+    { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
+  );
+}
+
+export function getFinanceReportPnlAccountActivity(
+  token: string,
+  accountId: string,
+  preset: FinanceReportPreset,
+  from?: string,
+  to?: string,
+  siteId?: string | null,
+) {
+  return request<PnlAccountActivityReport>(
+    `/finance/reports/profit-and-loss/account-activity${financeReportQuery({
+      account_id: accountId,
+      preset,
+      from,
+      to,
+      site_id: siteId ?? undefined,
+    })}`,
     { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
   );
 }
@@ -2711,6 +3252,63 @@ export function getFinanceReportSupplierWhtMonthly(token: string, year?: number)
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
+}
+
+export type BudgetListItem = {
+  id: string;
+  name: string;
+  fiscal_year: number;
+  scope_type: string;
+  scope_label: string;
+  status: string;
+  budget_total: number;
+};
+
+export type BudgetVsActualRow = {
+  account_id: number;
+  code: string;
+  name: string;
+  budget: number;
+  actual: number;
+  variance: number;
+  pct_used: number | null;
+};
+
+export type BudgetVsActualReport = {
+  budget: {
+    id: string;
+    name: string;
+    fiscal_year: number;
+    scope_type: string;
+    scope_label: string;
+    status: string;
+  };
+  period: { from: string; to: string };
+  rows: BudgetVsActualRow[];
+  totals: {
+    budget: number;
+    actual: number;
+    variance: number;
+    committed: number;
+    available: number;
+  };
+  as_of: string;
+};
+
+export type BudgetListResponse = { budgets: BudgetListItem[] };
+
+export function getFinanceBudgetList(token: string, fiscalYear?: number) {
+  return request<BudgetListResponse>(`/finance/budgets${financeReportQuery({ fiscal_year: fiscalYear })}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getFinanceBudgetVsActual(token: string, budgetId: string, asOf?: string) {
+  return request<BudgetVsActualReport>(
+    `/finance/budgets/${encodeURIComponent(budgetId)}/vs-actual${financeReportQuery({ as_of: asOf })}`,
+    { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
+  );
 }
 
 // ----------------------------

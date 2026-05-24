@@ -18,7 +18,8 @@ export type CrudResource =
   | 'store_issues'
   | 'store_receipts'
   | 'supplier_returns'
-  | 'pick_tickets';
+  | 'pick_tickets'
+  | 'payment_vouchers';
 
 export type CrudAction = 'view' | 'create' | 'update' | 'delete' | 'approve';
 

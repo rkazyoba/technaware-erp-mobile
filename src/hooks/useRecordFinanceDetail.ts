@@ -3,11 +3,13 @@ import {
   getCustomerInvoiceDetail,
   getPaymentDetail,
   getPaymentVoucherDetail,
+  getPettyCashRequestDetail,
   getProformaInvoiceDetail,
   getSupplierInvoiceDetail,
   type CustomerInvoiceDetail,
   type PaymentDetail,
   type PaymentVoucherDetail,
+  type PettyCashRequestDetail,
   type ProformaInvoiceDetail,
   type SupplierInvoiceDetail,
 } from '../api';
@@ -18,7 +20,28 @@ type FinanceDetailKind =
   | 'finance_proforma_invoice'
   | 'finance_payment'
   | 'finance_payment_voucher'
+  | 'finance_petty_cash_request'
   | 'finance_supplier_invoice';
+
+function pettyCashToPaymentVoucher(d: PettyCashRequestDetail): PaymentVoucherDetail {
+  return {
+    id: d.id,
+    ref: d.ref,
+    description: d.description,
+    status: d.workflow_status ?? '',
+    status_label: d.status_label,
+    prepared_date: d.requested_date ?? null,
+    approved_date: d.finance_approved_date ?? null,
+    total_amount: d.total_amount,
+    voucher_purpose: 'petty_cash',
+    ledger_posted: d.ledger_posted,
+    lines: d.lines.map((line) => ({
+      id: line.id,
+      description: line.line_description,
+      amount: line.amount,
+    })),
+  };
+}
 
 function isFinanceDetailKind(kind: RecordDetailParams['detailKind']): kind is FinanceDetailKind {
   return (
@@ -26,6 +49,7 @@ function isFinanceDetailKind(kind: RecordDetailParams['detailKind']): kind is Fi
     kind === 'finance_proforma_invoice' ||
     kind === 'finance_payment' ||
     kind === 'finance_payment_voucher' ||
+    kind === 'finance_petty_cash_request' ||
     kind === 'finance_supplier_invoice'
   );
 }
@@ -39,6 +63,7 @@ export function useRecordFinanceDetail(
   const [proformaInvoice, setProformaInvoice] = useState<ProformaInvoiceDetail | null>(null);
   const [payment, setPayment] = useState<PaymentDetail | null>(null);
   const [paymentVoucher, setPaymentVoucher] = useState<PaymentVoucherDetail | null>(null);
+  const [pettyCash, setPettyCash] = useState<PettyCashRequestDetail | null>(null);
   const [supplierInvoice, setSupplierInvoice] = useState<SupplierInvoiceDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +73,7 @@ export function useRecordFinanceDetail(
     setProformaInvoice(null);
     setPayment(null);
     setPaymentVoucher(null);
+    setPettyCash(null);
     setSupplierInvoice(null);
   }, []);
 
@@ -85,6 +111,13 @@ export function useRecordFinanceDetail(
           setPaymentVoucher(res.data);
           break;
         }
+        case 'finance_petty_cash_request': {
+          const res = await getPettyCashRequestDetail(token, recordId);
+          const d = res.data;
+          setPettyCash(d);
+          setPaymentVoucher(pettyCashToPaymentVoucher(d));
+          break;
+        }
         case 'finance_supplier_invoice': {
           const res = await getSupplierInvoiceDetail(token, recordId);
           setSupplierInvoice(res.data);
@@ -104,11 +137,17 @@ export function useRecordFinanceDetail(
     void load();
   }, [load]);
 
+  const applyPettyCashDetail = useCallback((d: PettyCashRequestDetail) => {
+    setPettyCash(d);
+    setPaymentVoucher(pettyCashToPaymentVoucher(d));
+  }, []);
+
   const loaded =
     (detailKind === 'finance_customer_invoice' && customerInvoice != null) ||
     (detailKind === 'finance_proforma_invoice' && proformaInvoice != null) ||
     (detailKind === 'finance_payment' && payment != null) ||
     (detailKind === 'finance_payment_voucher' && paymentVoucher != null) ||
+    (detailKind === 'finance_petty_cash_request' && paymentVoucher != null) ||
     (detailKind === 'finance_supplier_invoice' && supplierInvoice != null);
 
   return {
@@ -117,10 +156,12 @@ export function useRecordFinanceDetail(
     proformaInvoice,
     payment,
     paymentVoucher,
+    pettyCash,
     supplierInvoice,
     loading,
     error,
     loaded,
     reload: load,
+    applyPettyCashDetail,
   };
 }

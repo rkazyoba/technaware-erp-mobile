@@ -1,4 +1,4 @@
-import type { AttendanceRow, NotificationItem, StockReportLine } from '../api';
+import type { AttendanceRow, FinanceReportPreset, NotificationItem, StockReportLine } from '../api';
 import type { AccountingRecordDetailKind } from '../utils/accountingPortal';
 
 export type NotificationDetailPreview = Pick<NotificationItem, 'id' | 'title' | 'body' | 'read' | 'created_at' | 'module'>;
@@ -41,6 +41,7 @@ export type RecordDetailParams = {
     | 'finance_proforma_invoice'
     | 'finance_payment'
     | 'finance_payment_voucher'
+    | 'finance_petty_cash_request'
     | 'finance_supplier_invoice'
     | 'hr_employee'
     | 'hr_leave_balance'
@@ -69,7 +70,12 @@ export type RecordDetailParams = {
 export type ModulesStackParamList = {
   ModulesHome: undefined;
   Profile: undefined;
-  ModuleList: { moduleRoute: string };
+  ModuleList: {
+    moduleRoute: string;
+    /** Profit & loss site scope: '' omitted = all; `unallocated` or site id string */
+    financePnlSiteId?: string;
+    financePreset?: FinanceReportPreset;
+  };
   ModuleWorkspace: { moduleRoute: string };
   RecordDetail: RecordDetailParams;
   Approvals: { approvalId?: string; typeFilter?: string; kindFilter?: string } | undefined;
@@ -98,4 +104,20 @@ export type ModulesStackParamList = {
     recordId?: string;
   };
   LeaveRequestForm: undefined;
+  PettyCashRequestForm: { requestType?: 'imprest' | 'expense_claim' } | undefined;
+  PaymentVoucherForm: undefined;
+  CustomerPaymentRecord: {
+    invoiceId: string;
+    invoiceRef: string;
+    dueAmount?: number | null;
+    currency?: string;
+  };
+  PettyCashRetirement: { recordId: string };
+  StaffFinanceRetirementWorkspace: { retirementId: string; imprestId?: string };
+  StaffFinanceRequestWorkspace: {
+    requestId: string;
+    requestType: 'imprest' | 'expense_claim';
+    moduleRoute: string;
+    initialTab?: 'overview' | 'details' | 'header' | 'lines' | 'documents';
+  };
 };

@@ -3,7 +3,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from 'react-native';
-import type { AccountingListItem, LogisticsDocListItem, NotificationItem, StockReportLine, SupportTicketSummary } from '../api';
+import type {
+  AccountingListItem,
+  LogisticsDocListItem,
+  NotificationItem,
+  PettyCashRequestListItem,
+  StockReportLine,
+  SupportTicketSummary,
+} from '../api';
+import { StaffFinanceListSection } from '../components/finance/StaffFinanceListSection';
 import { Text } from '../components/AppTypography';
 import { WebPortalSurfacePanel } from '../components/WebPortalSurfacePanel';
 import { EmployeeProfileRequiredCard } from '../components/EmployeeProfileRequiredCard';
@@ -11,6 +19,7 @@ import { ModuleSearchToolbar } from '../components/ModuleSearchToolbar';
 import { colors } from '../constants/colors';
 import { outfit } from '../constants/typography';
 import { useStaffPortal } from '../context/StaffPortalContext';
+import { canCrud } from '../utils/crudPermissions';
 import {
   hrCatalogDetailKind,
   hrCatalogListLabel,
@@ -120,6 +129,10 @@ function hasListFirstUi(moduleRoute: string, portal: ReturnType<typeof useStaffP
     moduleRoute === 'Leave balances' ||
     isHrCatalogRoute(moduleRoute) ||
     moduleRoute === 'Leave Requests' ||
+    moduleRoute === 'Staff imprest' ||
+    moduleRoute === 'Expense claims' ||
+    moduleRoute === 'Imprest retirements' ||
+    moduleRoute === 'Petty cash requests' ||
     moduleRoute === 'Notifications' ||
     moduleRoute === 'Support' ||
     moduleRoute === 'Customers' ||
@@ -135,7 +148,11 @@ export function ModuleListScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<RouteProp<ModulesStackParamList, 'ModuleList'>>();
   const moduleRoute = route.params.moduleRoute;
+  const financePnlSiteId = route.params.financePnlSiteId;
+  const financePreset = route.params.financePreset;
   const sp = useStaffPortal();
+  const canCreatePaymentVoucher = useMemo(() => canCrud(sp.portal, 'payment_vouchers', 'create'), [sp.portal]);
+  const canCreatePettyCashRequest = canCreatePaymentVoucher;
   const {
     setPortalActiveTab,
     setPortalSelectedModule,
@@ -443,6 +460,23 @@ export function ModuleListScreen() {
     navigation.navigate('LeaveRequestForm');
   };
 
+  const openPettyCashRequestForm = (requestType: 'imprest' | 'expense_claim' = 'imprest') => {
+    navigation.navigate('PettyCashRequestForm', { requestType });
+  };
+
+  const openStaffFinanceDetail = (item: PettyCashRequestListItem) => {
+    openRecordDetail({
+      moduleRoute,
+      detailKind: 'finance_petty_cash_request',
+      recordId: item.id,
+      titleHint: item.ref,
+    });
+  };
+
+  const openPaymentVoucherForm = () => {
+    navigation.navigate('PaymentVoucherForm');
+  };
+
   const openFullWorkspace = () => {
     navigation.navigate('ModuleWorkspace', { moduleRoute });
   };
@@ -692,10 +726,27 @@ export function ModuleListScreen() {
         <FinanceReportsPanel
           moduleRoute={moduleRoute as FinanceReportMobileModule}
           webPath={portalWebPath}
+          initialPnlSiteId={financePnlSiteId}
+          initialPreset={financePreset}
+          onNavigateToProfitAndLoss={(siteId, reportPreset) =>
+            navigation.push('ModuleList', {
+              moduleRoute: 'Report profit and loss',
+              financePnlSiteId: siteId,
+              financePreset: reportPreset,
+            })
+          }
           onOpenCustomerInvoice={(id, titleHint) =>
             navigation.navigate('RecordDetail', {
               moduleRoute: 'Customer invoices',
               detailKind: 'finance_customer_invoice',
+              recordId: id,
+              titleHint,
+            })
+          }
+          onOpenJournalEntry={(id, titleHint) =>
+            navigation.navigate('RecordDetail', {
+              moduleRoute: 'Accounting journal entries',
+              detailKind: 'accounting_journal_entry',
               recordId: id,
               titleHint,
             })
@@ -1353,6 +1404,11 @@ export function ModuleListScreen() {
 
         {moduleRoute === 'Payment vouchers' ? (
           <View style={styles.approvalsSection}>
+            {canCreatePaymentVoucher ? (
+              <Pressable style={styles.primaryAction} onPress={openPaymentVoucherForm}>
+                <Text style={styles.primaryActionText}>New payment voucher</Text>
+              </Pressable>
+            ) : null}
             <Text style={styles.syncText}>Last updated: {paymentVouchersUpdatedAt ?? 'Not synced yet'}</Text>
             <ModuleSearchToolbar
               value={paymentVoucherSearchInput}
@@ -1658,6 +1714,74 @@ export function ModuleListScreen() {
             ) : null}
             </>
             ) : null}
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Staff imprest' ? (
+          <StaffFinanceListSection
+            moduleRoute={moduleRoute}
+            filter={{ kind: 'imprest' }}
+            navigation={navigation}
+            canCreate={canCreatePettyCashRequest}
+            onOpenDetail={openStaffFinanceDetail}
+          />
+        ) : null}
+
+        {moduleRoute === 'Expense claims' ? (
+          <StaffFinanceListSection
+            moduleRoute={moduleRoute}
+            filter={{ kind: 'expense_claim' }}
+            navigation={navigation}
+            canCreate={canCreatePettyCashRequest}
+            onOpenDetail={openStaffFinanceDetail}
+          />
+        ) : null}
+
+        {moduleRoute === 'Imprest retirements' ? (
+          <View>
+            <Text style={[styles.approvalType, { marginBottom: 8, paddingHorizontal: 4 }]}>Ready to retire</Text>
+            <StaffFinanceListSection
+              moduleRoute={moduleRoute}
+              filter={{ kind: 'awaiting_retirement' }}
+              navigation={navigation}
+              canCreate={false}
+              onOpenDetail={openStaffFinanceDetail}
+            />
+            <Text style={[styles.approvalType, { marginTop: 16, marginBottom: 8, paddingHorizontal: 4 }]}>
+              Submitted retirements
+            </Text>
+            <StaffFinanceListSection
+              moduleRoute={moduleRoute}
+              filter={{ kind: 'imprest_retirement' }}
+              navigation={navigation}
+              canCreate={false}
+              onOpenDetail={openStaffFinanceDetail}
+            />
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Petty cash requests' ? (
+          <View>
+            {canCreatePettyCashRequest ? (
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                <Pressable style={[styles.primaryAction, { flex: 1 }]} onPress={() => openPettyCashRequestForm('imprest')}>
+                  <Text style={styles.primaryActionText}>New imprest</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.detailsButton, { flex: 1, alignItems: 'center', justifyContent: 'center' }]}
+                  onPress={() => openPettyCashRequestForm('expense_claim')}
+                >
+                  <Text style={styles.detailsButtonText}>New expense claim</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            <StaffFinanceListSection
+              moduleRoute={moduleRoute}
+              filter={{ kind: 'all' }}
+              navigation={navigation}
+              canCreate={false}
+              onOpenDetail={openStaffFinanceDetail}
+            />
           </View>
         ) : null}
 

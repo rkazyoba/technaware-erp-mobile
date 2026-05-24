@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { Text } from '../AppTypography';
 import { colors } from '../../constants/colors';
 import { outfit } from '../../constants/typography';
+import { LogisticsLedgerStatusCard } from './LogisticsLedgerStatusCard';
 import type {
   CustomerInvoiceDetail,
   PaymentDetail,
@@ -325,8 +326,33 @@ export function FinanceLinesSection({ lines, emptyLabel = 'No line items.' }: { 
 }
 
 export function CustomerInvoiceOverview({ d }: { d: CustomerInvoiceDetail }) {
+  const isCreditNote = d.sales_type === 'credit_note';
+  const ledgerMsg = isCreditNote
+    ? d.ledger_reversed
+      ? 'Reversal posted to ledger'
+      : d.status === '3'
+        ? 'Cancelled — reversal journal not found'
+        : 'Credit note reverses revenue / AR on approval'
+    : d.ledger_posted
+      ? 'Posted to ledger (revenue / AR)'
+      : 'Approved — ledger entry not found';
+
   return (
     <>
+      {(d.status === '2' || d.status === '4' || (isCreditNote && d.status === '3')) ? (
+        <LogisticsLedgerStatusCard
+          status={d.status === '3' ? '2' : d.status}
+          ledgerPosted={isCreditNote ? !!d.ledger_reversed || d.status === '2' : !!d.ledger_posted}
+          postedMessage={ledgerMsg}
+          pendingMessage={ledgerMsg}
+        />
+      ) : null}
+      {d.payment?.due_amount != null ? (
+        <DetailSection title="Accounts receivable">
+          <DetailRow label="Paid to date" value={fmtFinanceMoney(d.payment.paid_amount)} />
+          <DetailRow label="Amount due" value={fmtFinanceMoney(d.payment.due_amount)} emphasize />
+        </DetailSection>
+      ) : null}
       <DetailSection title="Identification">
         <DetailRow label="Invoice no." value={dash(d.ref)} emphasize />
         <DetailRow label="Customer" value={dash(d.customer_name)} />
@@ -459,14 +485,28 @@ export function PaymentOverview({ d }: { d: PaymentDetail }) {
   );
 }
 
+function ledgerStatusLabel(d: { status?: string; ledger_posted?: boolean }): string | null {
+  if (String(d.status ?? '') !== '2') {
+    return null;
+  }
+  if (d.ledger_posted) {
+    return 'Posted to general ledger';
+  }
+  return 'Approved — ledger entry pending';
+}
+
 export function PaymentVoucherOverview({ d }: { d: PaymentVoucherDetail }) {
+  const ledgerLabel = ledgerStatusLabel(d);
+
   return (
     <>
       <DetailSection title="Voucher">
         <DetailRow label="Voucher no." value={dash(d.ref)} emphasize />
         <DetailRow label="Status" value={dash(d.status_label)} />
+        {ledgerLabel ? <DetailRow label="Accounting" value={ledgerLabel} /> : null}
         <DetailRow label="Prepared" value={dash(d.prepared_date)} />
         {d.approved_date ? <DetailRow label="Approved" value={d.approved_date} /> : null}
+        {d.voucher_purpose === 'petty_cash' ? <DetailRow label="Type" value="Petty cash" /> : null}
         {d.description?.trim() ? <DetailRow label="Description" value={d.description.trim()} /> : null}
       </DetailSection>
       {d.total_amount != null ? (

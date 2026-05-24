@@ -2,6 +2,7 @@ import { Pressable, TextInput, View } from 'react-native';
 import { Text } from '../AppTypography';
 import { DatePickerField } from '../DatePickerField';
 import { FormSection, ReadonlyField, SearchableSelectField, type SearchableSelectOption } from '../SearchableSelectField';
+import { LogisticsLedgerStatusCard } from '../finance/LogisticsLedgerStatusCard';
 import { StatusBadge } from '../StatusBadge';
 import type { LogisticsDocDetail } from '../../api';
 import { colors } from '../../constants/colors';
@@ -148,6 +149,8 @@ export function NonPoReceiptOverviewPanel({
           </View>
         </View>
       </View>
+
+      <LogisticsLedgerStatusCard status={detail.status} ledgerPosted={detail.ledger_posted} />
 
       {editable ? (
         <>
