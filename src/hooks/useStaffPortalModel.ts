@@ -25,6 +25,22 @@ import {
   getApprovalsSummary,
   type ApprovalsSummary,
   getAttendance,
+  getHospitalityFrontDeskSummary,
+  getHospitalityHousekeepingRooms,
+  getHospitalityReservations,
+  getHospitalityReservationDetail,
+  getHospitalityGuests,
+  getHospitalityGuestDetail,
+  getHospitalityFolios,
+  getHospitalityFolioDetail,
+  postHospitalityFolioPayment,
+  postHospitalityFolioCharge,
+  getHospitalityOverview,
+  getHospitalityRateCatalog,
+  getHospitalityRoomsInventory,
+  getHospitalityReportsSummary,
+  getHospitalityChannelManagerSummary,
+  getHospitalityReservationSales,
   getBankBranchDetail,
   getBankBranches,
   getBankMasterDetail,
@@ -88,6 +104,21 @@ import {
   type ApprovalDetail,
   type ApprovalItem,
   type AttendanceRow,
+  type HospitalityFrontDeskSummary,
+  type HospitalityHousekeepingSummary,
+  type HospitalityReservationListItem,
+  type HospitalityReservationDetail,
+  type HospitalityGuestListItem,
+  type HospitalityGuestDetail,
+  type HospitalityFolioListItem,
+  type HospitalityFolioDetail,
+  type HospitalityOverviewSummary,
+  type HospitalityRateCatalogEntry,
+  type HospitalityRateCatalogSummary,
+  type HospitalityRoomsInventorySummary,
+  type HospitalityReportsSummary,
+  type HospitalityChannelManagerSummary,
+  type HospitalitySalesDocument,
   type CrmContractDetail,
   type CrmContractListItem,
   type CrmCustomerDetail,
@@ -611,6 +642,53 @@ export function useStaffPortalModel({
   const [attendanceItems, setAttendanceItems] = useState<AttendanceRow[]>([]);
   const [attendanceFrom, setAttendanceFrom] = useState<string | null>(null);
   const [attendanceUpdatedAt, setAttendanceUpdatedAt] = useState<string | null>(null);
+  const [hospitalityFrontDesk, setHospitalityFrontDesk] = useState<HospitalityFrontDeskSummary | null>(null);
+  const [hospitalityFrontDeskUpdatedAt, setHospitalityFrontDeskUpdatedAt] = useState<string | null>(null);
+  const [hospitalityHousekeeping, setHospitalityHousekeeping] = useState<HospitalityHousekeepingSummary | null>(null);
+  const [hospitalityHousekeepingUpdatedAt, setHospitalityHousekeepingUpdatedAt] = useState<string | null>(null);
+  const [hospitalityReservationItems, setHospitalityReservationItems] = useState<HospitalityReservationListItem[]>([]);
+  const [hospitalityReservationPage, setHospitalityReservationPage] = useState(1);
+  const [hospitalityReservationHasMore, setHospitalityReservationHasMore] = useState(false);
+  const [hospitalityReservationsUpdatedAt, setHospitalityReservationsUpdatedAt] = useState<string | null>(null);
+  const [hospitalityReservationSearchInput, setHospitalityReservationSearchInput] = useState('');
+  const [hospitalityReservationQueryCommitted, setHospitalityReservationQueryCommitted] = useState('');
+  const [hospitalityReservationDetail, setHospitalityReservationDetail] = useState<HospitalityReservationDetail | null>(null);
+
+  const [hospitalityGuestItems, setHospitalityGuestItems] = useState<HospitalityGuestListItem[]>([]);
+  const [hospitalityGuestPage, setHospitalityGuestPage] = useState(1);
+  const [hospitalityGuestHasMore, setHospitalityGuestHasMore] = useState(false);
+  const [hospitalityGuestsUpdatedAt, setHospitalityGuestsUpdatedAt] = useState<string | null>(null);
+  const [hospitalityGuestSearchInput, setHospitalityGuestSearchInput] = useState('');
+  const [hospitalityGuestQueryCommitted, setHospitalityGuestQueryCommitted] = useState('');
+  const [hospitalityGuestDetail, setHospitalityGuestDetail] = useState<HospitalityGuestDetail | null>(null);
+  const [hospitalityFolioItems, setHospitalityFolioItems] = useState<HospitalityFolioListItem[]>([]);
+  const [hospitalityFolioPage, setHospitalityFolioPage] = useState(1);
+  const [hospitalityFolioHasMore, setHospitalityFolioHasMore] = useState(false);
+  const [hospitalityFoliosUpdatedAt, setHospitalityFoliosUpdatedAt] = useState<string | null>(null);
+  const [hospitalityFolioSearchInput, setHospitalityFolioSearchInput] = useState('');
+  const [hospitalityFolioQueryCommitted, setHospitalityFolioQueryCommitted] = useState('');
+  const [hospitalityFolioDetail, setHospitalityFolioDetail] = useState<HospitalityFolioDetail | null>(null);
+  const [hospitalityDetailLoading, setHospitalityDetailLoading] = useState(false);
+  const [hospitalityDetailError, setHospitalityDetailError] = useState<string | null>(null);
+  const [hospitalityOverview, setHospitalityOverview] = useState<HospitalityOverviewSummary | null>(null);
+  const [hospitalityOverviewUpdatedAt, setHospitalityOverviewUpdatedAt] = useState<string | null>(null);
+  const [hospitalityRateCatalog, setHospitalityRateCatalog] = useState<HospitalityRateCatalogSummary | null>(null);
+  const [hospitalityRateCatalogPage, setHospitalityRateCatalogPage] = useState(1);
+  const [hospitalityRateCatalogHasMore, setHospitalityRateCatalogHasMore] = useState(false);
+  const [hospitalityRateCatalogUpdatedAt, setHospitalityRateCatalogUpdatedAt] = useState<string | null>(null);
+  const [hospitalityRoomsInventory, setHospitalityRoomsInventory] = useState<HospitalityRoomsInventorySummary | null>(null);
+  const [hospitalityRoomsInventoryUpdatedAt, setHospitalityRoomsInventoryUpdatedAt] = useState<string | null>(null);
+  const [hospitalityReports, setHospitalityReports] = useState<HospitalityReportsSummary | null>(null);
+  const [hospitalityReportsUpdatedAt, setHospitalityReportsUpdatedAt] = useState<string | null>(null);
+  const [hospitalityChannelManager, setHospitalityChannelManager] = useState<HospitalityChannelManagerSummary | null>(null);
+  const [hospitalityChannelManagerUpdatedAt, setHospitalityChannelManagerUpdatedAt] = useState<string | null>(null);
+  const [hospitalitySalesItems, setHospitalitySalesItems] = useState<HospitalitySalesDocument[]>([]);
+  const [hospitalitySalesPage, setHospitalitySalesPage] = useState(1);
+  const [hospitalitySalesHasMore, setHospitalitySalesHasMore] = useState(false);
+  const [hospitalitySalesUpdatedAt, setHospitalitySalesUpdatedAt] = useState<string | null>(null);
+  const [hospitalitySalesSearchInput, setHospitalitySalesSearchInput] = useState('');
+  const [hospitalitySalesQueryCommitted, setHospitalitySalesQueryCommitted] = useState('');
+  const [hospitalitySalesKind, setHospitalitySalesKind] = useState<'all' | 'quotation' | 'proforma' | 'invoice'>('all');
 
   const [supportTickets, setSupportTickets] = useState<SupportTicketSummary[]>([]);
   const [supportDetail, setSupportDetail] = useState<SupportTicketDetail | null>(null);
@@ -1619,6 +1697,324 @@ export function useStaffPortalModel({
     }
   };
 
+  const loadHospitalityFrontDesk = async (propertyId?: string | null) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const selected =
+        propertyId !== undefined
+          ? propertyId
+          : hospitalityFrontDesk?.selected_property_id;
+      const res = await getHospitalityFrontDeskSummary(token, selected);
+      setHospitalityFrontDesk(res.data);
+      setHospitalityFrontDeskUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load front desk summary.'),
+      );
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadHospitalityHousekeeping = async (params?: { propertyId?: string | null; status?: string | null }) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const selectedPropertyId =
+        params?.propertyId !== undefined
+          ? params.propertyId
+          : hospitalityHousekeeping?.selected_property_id;
+      const selectedStatus =
+        params?.status !== undefined
+          ? params.status
+          : hospitalityHousekeeping?.status_filter;
+      const res = await getHospitalityHousekeepingRooms(token, {
+        propertyId: selectedPropertyId,
+        status: selectedStatus,
+      });
+      setHospitalityHousekeeping(res.data);
+      setHospitalityHousekeepingUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load housekeeping rooms.'),
+      );
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadHospitalityReservations = async (page = 1, q?: string) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    const query = q !== undefined ? q : hospitalityReservationQueryCommitted;
+    if (page === 1) {
+      setHospitalityReservationQueryCommitted(query);
+    }
+    try {
+      const res = await getHospitalityReservations(token, page, 15, query);
+      setHospitalityReservationItems((current) => (page === 1 ? res.data.items : [...current, ...res.data.items]));
+      setHospitalityReservationPage(res.data.pagination.current_page);
+      setHospitalityReservationHasMore(res.data.pagination.has_more);
+      setHospitalityReservationsUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load reservations.'),
+      );
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadHospitalityReservationDetail = useCallback(async (id: string) => {
+    setHospitalityDetailLoading(true);
+    setHospitalityDetailError(null);
+    setHospitalityReservationDetail(null);
+    try {
+      const res = await getHospitalityReservationDetail(token, id);
+      setHospitalityReservationDetail(res.data);
+    } catch (error) {
+      setHospitalityDetailError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load reservation detail.'),
+      );
+    } finally {
+      setHospitalityDetailLoading(false);
+    }
+  }, [token]);
+
+  const loadHospitalityGuests = async (page = 1, q?: string) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    const query = q !== undefined ? q : hospitalityGuestQueryCommitted;
+    if (page === 1) {
+      setHospitalityGuestQueryCommitted(query);
+    }
+    try {
+      const res = await getHospitalityGuests(token, page, 15, query);
+      setHospitalityGuestItems((current) => (page === 1 ? res.data.items : [...current, ...res.data.items]));
+      setHospitalityGuestPage(res.data.pagination.current_page);
+      setHospitalityGuestHasMore(res.data.pagination.has_more);
+      setHospitalityGuestsUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load guests.'),
+      );
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadHospitalityGuestDetail = useCallback(async (id: string) => {
+    setHospitalityDetailLoading(true);
+    setHospitalityDetailError(null);
+    setHospitalityGuestDetail(null);
+    try {
+      const res = await getHospitalityGuestDetail(token, id);
+      setHospitalityGuestDetail(res.data);
+    } catch (error) {
+      setHospitalityDetailError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load guest detail.'),
+      );
+    } finally {
+      setHospitalityDetailLoading(false);
+    }
+  }, [token]);
+
+  const loadHospitalityFolios = async (page = 1, q?: string) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    const query = q !== undefined ? q : hospitalityFolioQueryCommitted;
+    if (page === 1) {
+      setHospitalityFolioQueryCommitted(query);
+    }
+    try {
+      const res = await getHospitalityFolios(token, page, 15, query);
+      setHospitalityFolioItems((current) => (page === 1 ? res.data.items : [...current, ...res.data.items]));
+      setHospitalityFolioPage(res.data.pagination.current_page);
+      setHospitalityFolioHasMore(res.data.pagination.has_more);
+      setHospitalityFoliosUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load folios.'),
+      );
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadHospitalityFolioDetail = useCallback(async (reservationId: string) => {
+    setHospitalityDetailLoading(true);
+    setHospitalityDetailError(null);
+    setHospitalityFolioDetail(null);
+    try {
+      const res = await getHospitalityFolioDetail(token, reservationId);
+      setHospitalityFolioDetail(res.data);
+    } catch (error) {
+      setHospitalityDetailError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load folio detail.'),
+      );
+    } finally {
+      setHospitalityDetailLoading(false);
+    }
+  }, [token]);
+
+  const addHospitalityFolioPayment = useCallback(async (reservationId: string, amount: number, description?: string) => {
+    setHospitalityDetailLoading(true);
+    setHospitalityDetailError(null);
+    try {
+      const res = await postHospitalityFolioPayment(token, reservationId, amount, description);
+      setHospitalityFolioDetail(res.data);
+      setHospitalityFoliosUpdatedAt(formatNow());
+    } catch (error) {
+      setHospitalityDetailError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to add folio payment.'),
+      );
+    } finally {
+      setHospitalityDetailLoading(false);
+    }
+  }, [token]);
+
+  const addHospitalityFolioCharge = useCallback(async (reservationId: string, amount: number, description: string) => {
+    setHospitalityDetailLoading(true);
+    setHospitalityDetailError(null);
+    try {
+      const res = await postHospitalityFolioCharge(token, reservationId, amount, description);
+      setHospitalityFolioDetail(res.data);
+      setHospitalityFoliosUpdatedAt(formatNow());
+    } catch (error) {
+      setHospitalityDetailError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to add folio charge.'),
+      );
+    } finally {
+      setHospitalityDetailLoading(false);
+    }
+  }, [token]);
+
+  const loadHospitalityOverview = async () => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getHospitalityOverview(token);
+      setHospitalityOverview(res.data);
+      setHospitalityOverviewUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load hospitality overview.'),
+      );
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadHospitalityRateCatalog = async (page = 1, propertyId?: string | null) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const selected =
+        propertyId !== undefined ? propertyId : hospitalityRateCatalog?.selected_property_id;
+      const res = await getHospitalityRateCatalog(token, page, 20, selected);
+      setHospitalityRateCatalog((current) => {
+        if (page === 1 || !current) {
+          return res.data;
+        }
+        return {
+          ...res.data,
+          items: [...current.items, ...res.data.items],
+        };
+      });
+      setHospitalityRateCatalogPage(res.data.pagination.current_page);
+      setHospitalityRateCatalogHasMore(res.data.pagination.has_more);
+      setHospitalityRateCatalogUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load rate catalog.'),
+      );
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadHospitalityRoomsInventory = async (propertyId?: string | null) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const selected =
+        propertyId !== undefined ? propertyId : hospitalityRoomsInventory?.selected_property_id;
+      const res = await getHospitalityRoomsInventory(token, selected);
+      setHospitalityRoomsInventory(res.data);
+      setHospitalityRoomsInventoryUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load rooms inventory.'),
+      );
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadHospitalityReports = async (params?: { propertyId?: string | null; date?: string | null }) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getHospitalityReportsSummary(token, {
+        propertyId: params?.propertyId !== undefined ? params.propertyId : hospitalityReports?.selected_property_id,
+        date: params?.date !== undefined ? params.date : hospitalityReports?.date,
+      });
+      setHospitalityReports(res.data);
+      setHospitalityReportsUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load hospitality reports.'),
+      );
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadHospitalityChannelManager = async (propertyId?: string | null) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const selected =
+        propertyId !== undefined ? propertyId : hospitalityChannelManager?.selected_property_id;
+      const res = await getHospitalityChannelManagerSummary(token, selected);
+      setHospitalityChannelManager(res.data);
+      setHospitalityChannelManagerUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load channel manager.'),
+      );
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadHospitalityReservationSales = async (page = 1, q?: string, kind?: 'all' | 'quotation' | 'proforma' | 'invoice') => {
+    setModuleLoading(true);
+    setModuleError(null);
+    const query = q !== undefined ? q : hospitalitySalesQueryCommitted;
+    const docKind = kind !== undefined ? kind : hospitalitySalesKind;
+    if (page === 1) {
+      setHospitalitySalesQueryCommitted(query);
+      if (kind !== undefined) {
+        setHospitalitySalesKind(kind);
+      }
+    }
+    try {
+      const res = await getHospitalityReservationSales(token, page, 15, query, docKind);
+      setHospitalitySalesItems((current) => (page === 1 ? res.data.items : [...current, ...res.data.items]));
+      setHospitalitySalesPage(res.data.pagination.current_page);
+      setHospitalitySalesHasMore(res.data.pagination.has_more);
+      setHospitalitySalesUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(
+        friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load reservation sales.'),
+      );
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
   const loadSupportTickets = async () => {
     setModuleLoading(true);
     setModuleError(null);
@@ -2271,6 +2667,39 @@ export function useStaffPortalModel({
       if (route === 'Attendance') {
         return loadAttendance();
       }
+      if (route === 'Front desk') {
+        return loadHospitalityFrontDesk();
+      }
+      if (route === 'Housekeeping') {
+        return loadHospitalityHousekeeping();
+      }
+      if (route === 'Reservations') {
+        return loadHospitalityReservations(page, q);
+      }
+      if (route === 'Guests') {
+        return loadHospitalityGuests(page, q);
+      }
+      if (route === 'Folios & billing') {
+        return loadHospitalityFolios(page, q);
+      }
+      if (route === 'Hospitality overview') {
+        return loadHospitalityOverview();
+      }
+      if (route === 'Rate catalog') {
+        return loadHospitalityRateCatalog(page);
+      }
+      if (route === 'Rooms & inventory') {
+        return loadHospitalityRoomsInventory();
+      }
+      if (route === 'Hospitality reports') {
+        return loadHospitalityReports();
+      }
+      if (route === 'Channel manager') {
+        return loadHospitalityChannelManager();
+      }
+      if (route === 'Reservation sales') {
+        return loadHospitalityReservationSales(page, q);
+      }
       if (route === 'Support') {
         return loadSupportTickets();
       }
@@ -2333,6 +2762,11 @@ export function useStaffPortalModel({
       loadCrmContracts,
       loadCrmQuotations,
       loadAttendance,
+      loadHospitalityFrontDesk,
+      loadHospitalityHousekeeping,
+      loadHospitalityReservations,
+      loadHospitalityGuests,
+      loadHospitalityFolios,
       loadSupportTickets,
       fetchPartsCatalog,
       loadSuppliers,
@@ -2472,6 +2906,28 @@ export function useStaffPortalModel({
         await loadCrmQuotations(1, crmQuotationStatus);
       } else if (selectedModule === 'Attendance') {
         await loadAttendance();
+      } else if (selectedModule === 'Front desk') {
+        await loadHospitalityFrontDesk();
+      } else if (selectedModule === 'Housekeeping') {
+        await loadHospitalityHousekeeping();
+      } else if (selectedModule === 'Reservations') {
+        await loadHospitalityReservations(1, hospitalityReservationQueryCommitted);
+      } else if (selectedModule === 'Guests') {
+        await loadHospitalityGuests(1, hospitalityGuestQueryCommitted);
+      } else if (selectedModule === 'Folios & billing') {
+        await loadHospitalityFolios(1, hospitalityFolioQueryCommitted);
+      } else if (selectedModule === 'Hospitality overview') {
+        await loadHospitalityOverview();
+      } else if (selectedModule === 'Rate catalog') {
+        await loadHospitalityRateCatalog(1);
+      } else if (selectedModule === 'Rooms & inventory') {
+        await loadHospitalityRoomsInventory();
+      } else if (selectedModule === 'Hospitality reports') {
+        await loadHospitalityReports();
+      } else if (selectedModule === 'Channel manager') {
+        await loadHospitalityChannelManager();
+      } else if (selectedModule === 'Reservation sales') {
+        await loadHospitalityReservationSales(1, hospitalitySalesQueryCommitted);
       } else if (selectedModule === 'Support') {
         await loadSupportTickets();
       } else if (selectedModule === 'Part catalog') {
@@ -2559,6 +3015,52 @@ export function useStaffPortalModel({
     attendanceFrom,
     attendanceItems,
     attendanceUpdatedAt,
+    hospitalityFrontDesk,
+    hospitalityFrontDeskUpdatedAt,
+    hospitalityHousekeeping,
+    hospitalityHousekeepingUpdatedAt,
+    hospitalityReservationItems,
+    hospitalityReservationPage,
+    hospitalityReservationHasMore,
+    hospitalityReservationsUpdatedAt,
+    hospitalityReservationSearchInput,
+    hospitalityReservationQueryCommitted,
+    hospitalityReservationDetail,
+    hospitalityGuestItems,
+    hospitalityGuestPage,
+    hospitalityGuestHasMore,
+    hospitalityGuestsUpdatedAt,
+    hospitalityGuestSearchInput,
+    hospitalityGuestQueryCommitted,
+    hospitalityGuestDetail,
+    hospitalityFolioItems,
+    hospitalityFolioPage,
+    hospitalityFolioHasMore,
+    hospitalityFoliosUpdatedAt,
+    hospitalityFolioSearchInput,
+    hospitalityFolioQueryCommitted,
+    hospitalityFolioDetail,
+    hospitalityDetailLoading,
+    hospitalityDetailError,
+    hospitalityOverview,
+    hospitalityOverviewUpdatedAt,
+    hospitalityRateCatalog,
+    hospitalityRateCatalogPage,
+    hospitalityRateCatalogHasMore,
+    hospitalityRateCatalogUpdatedAt,
+    hospitalityRoomsInventory,
+    hospitalityRoomsInventoryUpdatedAt,
+    hospitalityReports,
+    hospitalityReportsUpdatedAt,
+    hospitalityChannelManager,
+    hospitalityChannelManagerUpdatedAt,
+    hospitalitySalesItems,
+    hospitalitySalesPage,
+    hospitalitySalesHasMore,
+    hospitalitySalesUpdatedAt,
+    hospitalitySalesSearchInput,
+    hospitalitySalesQueryCommitted,
+    hospitalitySalesKind,
     bankBranchDetail,
     bankBranchHasMore,
     bankBranchItems,
@@ -2654,6 +3156,22 @@ export function useStaffPortalModel({
     loadApprovals,
     loadApprovalSummary,
     loadAttendance,
+    loadHospitalityFrontDesk,
+    loadHospitalityHousekeeping,
+    loadHospitalityReservations,
+    loadHospitalityReservationDetail,
+    loadHospitalityGuests,
+    loadHospitalityGuestDetail,
+    loadHospitalityFolios,
+    loadHospitalityFolioDetail,
+    addHospitalityFolioPayment,
+    addHospitalityFolioCharge,
+    loadHospitalityOverview,
+    loadHospitalityRateCatalog,
+    loadHospitalityRoomsInventory,
+    loadHospitalityReports,
+    loadHospitalityChannelManager,
+    loadHospitalityReservationSales,
     loadCrmContractDetail,
     loadCrmContracts,
     loadCrmCustomerDetail,
@@ -2770,6 +3288,29 @@ export function useStaffPortalModel({
     setAttendanceFrom,
     setAttendanceItems,
     setAttendanceUpdatedAt,
+    setHospitalityReservationItems,
+    setHospitalityReservationPage,
+    setHospitalityReservationHasMore,
+    setHospitalityReservationsUpdatedAt,
+    setHospitalityReservationSearchInput,
+    setHospitalityReservationQueryCommitted,
+    setHospitalityReservationDetail,
+    setHospitalityGuestItems,
+    setHospitalityGuestPage,
+    setHospitalityGuestHasMore,
+    setHospitalityGuestsUpdatedAt,
+    setHospitalityGuestSearchInput,
+    setHospitalityGuestQueryCommitted,
+    setHospitalityGuestDetail,
+    setHospitalityFolioItems,
+    setHospitalityFolioPage,
+    setHospitalityFolioHasMore,
+    setHospitalityFoliosUpdatedAt,
+    setHospitalityFolioSearchInput,
+    setHospitalityFolioQueryCommitted,
+    setHospitalityFolioDetail,
+    setHospitalitySalesSearchInput,
+    setHospitalitySalesKind,
     setBankBranchDetail,
     setBankBranchHasMore,
     setBankBranchItems,

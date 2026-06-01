@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, TextInput, View } from 'react-native';
 import type {
   AccountingListItem,
   LogisticsDocListItem,
@@ -32,6 +32,7 @@ import { isLogisticsModule, logisticsPathFor } from '../hooks/useStaffPortalMode
 import { accountingDetailKindForModule, isAccountingApiListModule } from '../utils/accountingPortal';
 import { moduleRequiresEmployeeProfile, userHasEmployeeProfile } from '../utils/employeeProfile';
 import { moduleListHasItems } from '../utils/moduleListState';
+import { isHospitalityNativeModule } from '../utils/hospitalityPortal';
 import { isPortalModuleRouteAccessible, portalModuleAccessGate } from '../utils/portalModuleAccess';
 import { webPathForPortalSurface } from '../utils/portalWebSurfaces';
 import {
@@ -105,6 +106,9 @@ function hasListFirstUi(moduleRoute: string, portal: ReturnType<typeof useStaffP
   if (isAccountingApiListModule(moduleRoute)) {
     return true;
   }
+  if (isHospitalityNativeModule(moduleRoute)) {
+    return true;
+  }
   if (webPathForPortalSurface(moduleRoute, portal)) {
     return true;
   }
@@ -138,6 +142,11 @@ function hasListFirstUi(moduleRoute: string, portal: ReturnType<typeof useStaffP
     moduleRoute === 'Customers' ||
     moduleRoute === 'Contracts' ||
     moduleRoute === 'Quotations' ||
+    moduleRoute === 'Front desk' ||
+    moduleRoute === 'Housekeeping' ||
+    moduleRoute === 'Reservations' ||
+    moduleRoute === 'Guests' ||
+    moduleRoute === 'Folios & billing' ||
     moduleRoute === 'Part catalog' ||
     moduleRoute === 'Stock by store' ||
     moduleRoute === 'Attendance'
@@ -330,6 +339,47 @@ export function ModuleListScreen() {
     attendanceUpdatedAt,
     attendanceFrom,
     loadAttendance,
+    hospitalityFrontDesk,
+    hospitalityFrontDeskUpdatedAt,
+    loadHospitalityFrontDesk,
+    hospitalityHousekeeping,
+    hospitalityHousekeepingUpdatedAt,
+    loadHospitalityHousekeeping,
+    hospitalityReservationItems,
+    hospitalityReservationPage,
+    hospitalityReservationHasMore,
+    hospitalityReservationsUpdatedAt,
+    hospitalityReservationSearchInput,
+    setHospitalityReservationSearchInput,
+    hospitalityReservationQueryCommitted,
+    hospitalityReservationDetail,
+    setHospitalityReservationDetail,
+    loadHospitalityReservations,
+    loadHospitalityReservationDetail,
+    hospitalityGuestItems,
+    hospitalityGuestPage,
+    hospitalityGuestHasMore,
+    hospitalityGuestsUpdatedAt,
+    hospitalityGuestSearchInput,
+    setHospitalityGuestSearchInput,
+    hospitalityGuestQueryCommitted,
+    hospitalityGuestDetail,
+    setHospitalityGuestDetail,
+    loadHospitalityGuests,
+    loadHospitalityGuestDetail,
+    hospitalityFolioItems,
+    hospitalityFolioPage,
+    hospitalityFolioHasMore,
+    hospitalityFoliosUpdatedAt,
+    hospitalityFolioSearchInput,
+    setHospitalityFolioSearchInput,
+    hospitalityFolioQueryCommitted,
+    hospitalityFolioDetail,
+    setHospitalityFolioDetail,
+    loadHospitalityFolios,
+    loadHospitalityFolioDetail,
+    addHospitalityFolioPayment,
+    addHospitalityFolioCharge,
     crmCustomerItems,
     crmCustomerPage,
     crmCustomerHasMore,
@@ -403,13 +453,16 @@ export function ModuleListScreen() {
   const essBlocked = moduleRequiresEmployeeProfile(moduleRoute) && !userHasEmployeeProfile(user);
 
   const moduleAccessGate = useMemo(() => portalModuleAccessGate(portal, moduleRoute.trim()), [portal, moduleRoute]);
+  const [folioTxnAmount, setFolioTxnAmount] = useState('1');
+  const [folioTxnDescription, setFolioTxnDescription] = useState('');
 
   const portalWebPath = useMemo(() => webPathForPortalSurface(moduleRoute, portal), [moduleRoute, portal]);
   const showPortalWebPanel =
     Boolean(portalWebPath) &&
     !isAccountingApiListModule(moduleRoute) &&
     !isFinanceReportMobileModule(moduleRoute) &&
-    moduleRoute !== 'Stock by store';
+    moduleRoute !== 'Stock by store' &&
+    !isHospitalityNativeModule(moduleRoute);
   const portalSurfaceRow = useMemo(
     () => portal?.surfaces?.find((s) => s.visible && s.route === moduleRoute),
     [portal?.surfaces, moduleRoute],
@@ -2675,6 +2728,633 @@ export function ModuleListScreen() {
             ))}
             </>
             ) : null}
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Front desk' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>
+              Last updated: {hospitalityFrontDeskUpdatedAt ?? 'Not synced yet'}
+              {hospitalityFrontDesk?.today ? ` · ${hospitalityFrontDesk.today}` : ''}
+            </Text>
+            {hospitalityFrontDesk?.properties?.length ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
+                <Pressable
+                  onPress={() => void loadHospitalityFrontDesk(null)}
+                  style={{
+                    borderRadius: 20,
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    backgroundColor: !hospitalityFrontDesk.selected_property_id ? colors.primaryNavy : colors.surface,
+                    borderWidth: 0.5,
+                    borderColor: !hospitalityFrontDesk.selected_property_id ? colors.primaryNavy : colors.borderSubtle,
+                  }}
+                >
+                  <Text style={{ ...outfit('medium', 12), color: !hospitalityFrontDesk.selected_property_id ? '#fff' : colors.textPrimary }}>
+                    All properties
+                  </Text>
+                </Pressable>
+                {hospitalityFrontDesk.properties.map((p) => {
+                  const selected = hospitalityFrontDesk.selected_property_id === p.id;
+                  return (
+                    <Pressable
+                      key={p.id}
+                      onPress={() => void loadHospitalityFrontDesk(p.id)}
+                      style={{
+                        borderRadius: 20,
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        backgroundColor: selected ? colors.primaryNavy : colors.surface,
+                        borderWidth: 0.5,
+                        borderColor: selected ? colors.primaryNavy : colors.borderSubtle,
+                      }}
+                    >
+                      <Text style={{ ...outfit('medium', 12), color: selected ? '#fff' : colors.textPrimary }}>{p.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
+            {moduleError ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Could not load front desk</Text>
+                <Text style={styles.emptyStateText}>{moduleError}</Text>
+                <Pressable style={styles.detailsButton} onPress={() => void loadHospitalityFrontDesk()}>
+                  <Text style={styles.detailsButtonText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {!moduleError && !moduleLoading && !hospitalityFrontDesk ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>No front desk data</Text>
+              </View>
+            ) : null}
+            {hospitalityFrontDesk ? (
+              <>
+                {([
+                  ['Arrivals', hospitalityFrontDesk.arrivals],
+                  ['Departures', hospitalityFrontDesk.departures],
+                  ['In house', hospitalityFrontDesk.in_house],
+                ] as const).map(([sectionTitle, rows]) => (
+                  <View key={sectionTitle} style={{ marginTop: 8 }}>
+                    <Text style={{ ...outfit('semibold', 13), color: colors.textPrimary, marginBottom: 8 }}>
+                      {sectionTitle} ({rows.length})
+                    </Text>
+                    {rows.length === 0 ? (
+                      <View style={styles.emptyStateCard}>
+                        <Text style={styles.emptyStateTitle}>No {sectionTitle.toLowerCase()}</Text>
+                      </View>
+                    ) : (
+                      rows.map((row) => (
+                        <Pressable
+                          key={`${sectionTitle}-${row.id}`}
+                          style={styles.approvalCard}
+                          onPress={() =>
+                            navigation.navigate('HospitalityDetail', {
+                              detailKind: 'reservation',
+                              recordId: row.id,
+                              titleHint: row.document_no ?? `Reservation #${row.id}`,
+                            })
+                          }
+                        >
+                          <View style={styles.approvalHeader}>
+                            <Text style={styles.approvalId}>{row.document_no ?? `#${row.id}`}</Text>
+                            <Text style={styles.approvalStatus}>{row.status}</Text>
+                          </View>
+                          <Text style={styles.approvalSubject} numberOfLines={2}>
+                            {row.guest_name ?? 'Guest'}
+                          </Text>
+                          <Text style={styles.approvalOwner}>
+                            {row.arrival_date ?? '—'} → {row.departure_date ?? '—'}
+                            {row.room_number ? ` · Room ${row.room_number}` : ''}
+                          </Text>
+                        </Pressable>
+                      ))
+                    )}
+                  </View>
+                ))}
+              </>
+            ) : null}
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Housekeeping' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {hospitalityHousekeepingUpdatedAt ?? 'Not synced yet'}</Text>
+            {hospitalityHousekeeping?.properties?.length ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
+                <Pressable
+                  onPress={() => void loadHospitalityHousekeeping({ propertyId: null })}
+                  style={{
+                    borderRadius: 20,
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    backgroundColor: !hospitalityHousekeeping.selected_property_id ? colors.primaryNavy : colors.surface,
+                    borderWidth: 0.5,
+                    borderColor: !hospitalityHousekeeping.selected_property_id ? colors.primaryNavy : colors.borderSubtle,
+                  }}
+                >
+                  <Text style={{ ...outfit('medium', 12), color: !hospitalityHousekeeping.selected_property_id ? '#fff' : colors.textPrimary }}>
+                    All properties
+                  </Text>
+                </Pressable>
+                {hospitalityHousekeeping.properties.map((p) => {
+                  const selected = hospitalityHousekeeping.selected_property_id === p.id;
+                  return (
+                    <Pressable
+                      key={p.id}
+                      onPress={() => void loadHospitalityHousekeeping({ propertyId: p.id })}
+                      style={{
+                        borderRadius: 20,
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        backgroundColor: selected ? colors.primaryNavy : colors.surface,
+                        borderWidth: 0.5,
+                        borderColor: selected ? colors.primaryNavy : colors.borderSubtle,
+                      }}
+                    >
+                      <Text style={{ ...outfit('medium', 12), color: selected ? '#fff' : colors.textPrimary }}>{p.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
+            {moduleError ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Could not load housekeeping</Text>
+                <Text style={styles.emptyStateText}>{moduleError}</Text>
+                <Pressable style={styles.detailsButton} onPress={() => void loadHospitalityHousekeeping()}>
+                  <Text style={styles.detailsButtonText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {!moduleError && !moduleLoading && !hospitalityHousekeeping ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>No housekeeping data</Text>
+              </View>
+            ) : null}
+            {hospitalityHousekeeping ? (
+              <>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
+                  <Pressable
+                    onPress={() => void loadHospitalityHousekeeping({ status: null })}
+                    style={{
+                      borderRadius: 20,
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
+                      backgroundColor: !hospitalityHousekeeping.status_filter ? colors.primaryNavy : colors.surface,
+                      borderWidth: 0.5,
+                      borderColor: !hospitalityHousekeeping.status_filter ? colors.primaryNavy : colors.borderSubtle,
+                    }}
+                  >
+                    <Text style={{ ...outfit('medium', 12), color: !hospitalityHousekeeping.status_filter ? '#fff' : colors.textPrimary }}>
+                      All statuses
+                    </Text>
+                  </Pressable>
+                  {Object.entries(hospitalityHousekeeping.statuses).map(([statusKey, statusLabel]) => {
+                    const selected = hospitalityHousekeeping.status_filter === statusKey;
+                    const count = hospitalityHousekeeping.counts?.[statusKey] ?? 0;
+                    return (
+                      <Pressable
+                        key={statusKey}
+                        onPress={() => void loadHospitalityHousekeeping({ status: statusKey })}
+                        style={{
+                          borderRadius: 20,
+                          paddingHorizontal: 14,
+                          paddingVertical: 8,
+                          backgroundColor: selected ? colors.primaryNavy : colors.surface,
+                          borderWidth: 0.5,
+                          borderColor: selected ? colors.primaryNavy : colors.borderSubtle,
+                        }}
+                      >
+                        <Text style={{ ...outfit('medium', 12), color: selected ? '#fff' : colors.textPrimary }}>
+                          {statusLabel} ({count})
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+                {!moduleError && !moduleLoading && hospitalityHousekeeping.rooms.length === 0 ? (
+                  <View style={styles.emptyStateCard}>
+                    <Text style={styles.emptyStateTitle}>No rooms</Text>
+                  </View>
+                ) : null}
+                {hospitalityHousekeeping.rooms.map((room) => (
+                  <View key={room.id} style={styles.approvalCard}>
+                    <View style={styles.approvalHeader}>
+                      <Text style={styles.approvalId}>Room {room.room_number}</Text>
+                      <Text style={styles.approvalStatus}>{room.status}</Text>
+                    </View>
+                    <Text style={styles.approvalOwner}>
+                      {room.room_class_name ?? '—'} · {room.property_name ?? '—'}
+                    </Text>
+                  </View>
+                ))}
+              </>
+            ) : null}
+          </View>
+        ) : null}
+        {moduleRoute === 'Reservations' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {hospitalityReservationsUpdatedAt ?? 'Not synced yet'}</Text>
+            <ModuleSearchToolbar
+              value={hospitalityReservationSearchInput}
+              onChangeText={setHospitalityReservationSearchInput}
+              onSearch={() => void loadHospitalityReservations(1, hospitalityReservationSearchInput.trim())}
+              onClear={() => {
+                setHospitalityReservationSearchInput('');
+                setHospitalityReservationDetail(null);
+                void loadHospitalityReservations(1, '');
+              }}
+              placeholder="Search reservation no or guest"
+            />
+            {moduleError ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Could not load reservations</Text>
+                <Text style={styles.emptyStateText}>{moduleError}</Text>
+                <Pressable style={styles.detailsButton} onPress={() => void loadHospitalityReservations(1, hospitalityReservationQueryCommitted)}>
+                  <Text style={styles.detailsButtonText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {!moduleError && !moduleLoading && hospitalityReservationItems.length === 0 ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>No reservations</Text>
+              </View>
+            ) : null}
+            {hospitalityReservationItems.map((item) => (
+              <Pressable
+                key={item.id}
+                style={styles.approvalCard}
+                onPress={() =>
+                  navigation.navigate('HospitalityDetail', {
+                    detailKind: 'reservation',
+                    recordId: item.id,
+                    titleHint: item.document_no || `Reservation #${item.id}`,
+                  })
+                }
+              >
+                <View style={styles.approvalHeader}>
+                  <Text style={styles.approvalId}>{item.document_no || `#${item.id}`}</Text>
+                  <Text style={styles.approvalStatus}>{item.status}</Text>
+                </View>
+                <Text style={styles.approvalSubject} numberOfLines={2}>
+                  {item.guest_name ?? 'Guest'}
+                </Text>
+                <Text style={styles.approvalOwner}>
+                  {item.property_name ?? '—'} · {item.arrival_date ?? '—'} → {item.departure_date ?? '—'}
+                  {item.room_number ? ` · Room ${item.room_number}` : ''}
+                </Text>
+              </Pressable>
+            ))}
+            {hospitalityReservationHasMore ? (
+              <Pressable style={styles.detailsButton} onPress={() => void loadHospitalityReservations(hospitalityReservationPage + 1, hospitalityReservationQueryCommitted)}>
+                <Text style={styles.detailsButtonText}>Load more</Text>
+              </Pressable>
+            ) : null}
+            {hospitalityReservationDetail ? (
+              <View style={{ ...styles.emptyStateCard, marginTop: 10 }}>
+                <View style={styles.approvalHeader}>
+                  <Text style={styles.emptyStateTitle}>Reservation detail</Text>
+                  <Pressable onPress={() => setHospitalityReservationDetail(null)}>
+                    <Text style={styles.detailsButtonText}>Close</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.emptyStateText}>
+                  {hospitalityReservationDetail.document_no} · {hospitalityReservationDetail.status}
+                </Text>
+                <Text style={styles.emptyStateText}>
+                  Guest: {hospitalityReservationDetail.guest?.name ?? '—'} · Room: {hospitalityReservationDetail.room_number ?? '—'}
+                </Text>
+                <Text style={styles.emptyStateText}>
+                  Stay: {hospitalityReservationDetail.arrival_date ?? '—'} → {hospitalityReservationDetail.departure_date ?? '—'}
+                </Text>
+                <Text style={styles.emptyStateText}>
+                  Total: {hospitalityReservationDetail.total_amount} · Folio balance: {hospitalityReservationDetail.folio_balance}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+        {moduleRoute === 'Guests' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {hospitalityGuestsUpdatedAt ?? 'Not synced yet'}</Text>
+            <ModuleSearchToolbar
+              value={hospitalityGuestSearchInput}
+              onChangeText={setHospitalityGuestSearchInput}
+              onSearch={() => void loadHospitalityGuests(1, hospitalityGuestSearchInput.trim())}
+              onClear={() => {
+                setHospitalityGuestSearchInput('');
+                setHospitalityGuestDetail(null);
+                void loadHospitalityGuests(1, '');
+              }}
+              placeholder="Search guest name, email, phone"
+            />
+            {moduleError ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Could not load guests</Text>
+                <Text style={styles.emptyStateText}>{moduleError}</Text>
+                <Pressable style={styles.detailsButton} onPress={() => void loadHospitalityGuests(1, hospitalityGuestQueryCommitted)}>
+                  <Text style={styles.detailsButtonText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {!moduleError && !moduleLoading && hospitalityGuestItems.length === 0 ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>No guests</Text>
+              </View>
+            ) : null}
+            {hospitalityGuestItems.map((item) => (
+              <Pressable
+                key={item.id}
+                style={styles.approvalCard}
+                onPress={() =>
+                  navigation.navigate('HospitalityDetail', {
+                    detailKind: 'guest',
+                    recordId: item.id,
+                    titleHint: item.name,
+                  })
+                }
+              >
+                <View style={styles.approvalHeader}>
+                  <Text style={styles.approvalId}>{item.name}</Text>
+                  <Text style={styles.approvalStatus}>{item.status}</Text>
+                </View>
+                <Text style={styles.approvalOwner}>
+                  {item.phone ?? '—'} · {item.email ?? '—'}
+                </Text>
+                <Text style={styles.approvalOwner}>{item.country ?? '—'}</Text>
+              </Pressable>
+            ))}
+            {hospitalityGuestHasMore ? (
+              <Pressable style={styles.detailsButton} onPress={() => void loadHospitalityGuests(hospitalityGuestPage + 1, hospitalityGuestQueryCommitted)}>
+                <Text style={styles.detailsButtonText}>Load more</Text>
+              </Pressable>
+            ) : null}
+            {hospitalityGuestDetail ? (
+              <View style={{ ...styles.emptyStateCard, marginTop: 10 }}>
+                <View style={styles.approvalHeader}>
+                  <Text style={styles.emptyStateTitle}>Guest detail</Text>
+                  <Pressable onPress={() => setHospitalityGuestDetail(null)}>
+                    <Text style={styles.detailsButtonText}>Close</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.emptyStateText}>
+                  {hospitalityGuestDetail.name} · {hospitalityGuestDetail.status}
+                </Text>
+                <Text style={styles.emptyStateText}>
+                  {hospitalityGuestDetail.phone ?? '—'} · {hospitalityGuestDetail.email ?? '—'}
+                </Text>
+                <Text style={styles.emptyStateText}>
+                  {hospitalityGuestDetail.document_type ?? '—'}: {hospitalityGuestDetail.document_no ?? '—'}
+                </Text>
+                <Text style={styles.emptyStateText}>
+                  Reservations: {hospitalityGuestDetail.reservations.length}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+        {moduleRoute === 'Folios & billing' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {hospitalityFoliosUpdatedAt ?? 'Not synced yet'}</Text>
+            <ModuleSearchToolbar
+              value={hospitalityFolioSearchInput}
+              onChangeText={setHospitalityFolioSearchInput}
+              onSearch={() => void loadHospitalityFolios(1, hospitalityFolioSearchInput.trim())}
+              onClear={() => {
+                setHospitalityFolioSearchInput('');
+                setHospitalityFolioDetail(null);
+                void loadHospitalityFolios(1, '');
+              }}
+              placeholder="Search reservation no or guest"
+            />
+            {moduleError ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Could not load folios</Text>
+                <Text style={styles.emptyStateText}>{moduleError}</Text>
+                <Pressable style={styles.detailsButton} onPress={() => void loadHospitalityFolios(1, hospitalityFolioQueryCommitted)}>
+                  <Text style={styles.detailsButtonText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {!moduleError && !moduleLoading && hospitalityFolioItems.length === 0 ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>No folios</Text>
+              </View>
+            ) : null}
+            {hospitalityFolioItems.map((item) => (
+              <Pressable
+                key={item.reservation_id}
+                style={styles.approvalCard}
+                onPress={() =>
+                  navigation.navigate('HospitalityDetail', {
+                    detailKind: 'folio',
+                    recordId: item.reservation_id,
+                    titleHint: item.reservation_no || `Folio #${item.reservation_id}`,
+                  })
+                }
+              >
+                <View style={styles.approvalHeader}>
+                  <Text style={styles.approvalId}>{item.reservation_no || `#${item.reservation_id}`}</Text>
+                  <Text style={styles.approvalStatus}>{item.folio_status}</Text>
+                </View>
+                <Text style={styles.approvalSubject} numberOfLines={2}>
+                  {item.guest_name ?? 'Guest'}
+                </Text>
+                <Text style={styles.approvalOwner}>
+                  {item.currency} {item.folio_balance} · {item.arrival_date ?? '—'} → {item.departure_date ?? '—'}
+                </Text>
+              </Pressable>
+            ))}
+            {hospitalityFolioHasMore ? (
+              <Pressable style={styles.detailsButton} onPress={() => void loadHospitalityFolios(hospitalityFolioPage + 1, hospitalityFolioQueryCommitted)}>
+                <Text style={styles.detailsButtonText}>Load more</Text>
+              </Pressable>
+            ) : null}
+            {hospitalityFolioDetail ? (
+              <View style={{ ...styles.emptyStateCard, marginTop: 10 }}>
+                <View style={styles.approvalHeader}>
+                  <Text style={styles.emptyStateTitle}>Folio detail</Text>
+                  <Pressable onPress={() => setHospitalityFolioDetail(null)}>
+                    <Text style={styles.detailsButtonText}>Close</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.emptyStateText}>
+                  {hospitalityFolioDetail.reservation_no} · {hospitalityFolioDetail.folio_status}
+                </Text>
+                <Text style={styles.emptyStateText}>
+                  Guest: {hospitalityFolioDetail.guest_name ?? '—'} · Balance: {hospitalityFolioDetail.currency} {hospitalityFolioDetail.folio_balance}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                  <TextInput
+                    value={folioTxnAmount}
+                    onChangeText={setFolioTxnAmount}
+                    keyboardType="numeric"
+                    placeholder="Amount"
+                    style={{
+                      flex: 1,
+                      borderWidth: 0.5,
+                      borderColor: colors.borderSubtle,
+                      borderRadius: 10,
+                      paddingHorizontal: 10,
+                      paddingVertical: 8,
+                      color: colors.textPrimary,
+                      backgroundColor: colors.surface,
+                    }}
+                  />
+                  <TextInput
+                    value={folioTxnDescription}
+                    onChangeText={setFolioTxnDescription}
+                    placeholder="Description"
+                    style={{
+                      flex: 2,
+                      borderWidth: 0.5,
+                      borderColor: colors.borderSubtle,
+                      borderRadius: 10,
+                      paddingHorizontal: 10,
+                      paddingVertical: 8,
+                      color: colors.textPrimary,
+                      backgroundColor: colors.surface,
+                    }}
+                  />
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                  <Pressable
+                    style={styles.detailsButton}
+                    onPress={() =>
+                      void addHospitalityFolioPayment(
+                        hospitalityFolioDetail.reservation_id,
+                        Number.parseFloat(folioTxnAmount) || 0,
+                        folioTxnDescription || 'Mobile payment',
+                      )
+                    }
+                  >
+                    <Text style={styles.detailsButtonText}>Add payment</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.detailsButton}
+                    onPress={() =>
+                      void addHospitalityFolioCharge(
+                        hospitalityFolioDetail.reservation_id,
+                        Number.parseFloat(folioTxnAmount) || 0,
+                        folioTxnDescription || 'Mobile charge',
+                      )
+                    }
+                  >
+                    <Text style={styles.detailsButtonText}>Add charge</Text>
+                  </Pressable>
+                </View>
+                {hospitalityFolioDetail.lines.map((line) => (
+                  <View key={line.id} style={{ ...styles.approvalCard, marginTop: 8 }}>
+                    <View style={styles.approvalHeader}>
+                      <Text style={styles.approvalId}>{line.posting_date ?? '—'}</Text>
+                      <Text style={styles.approvalStatus}>{line.line_type}</Text>
+                    </View>
+                    <Text style={styles.approvalSubject}>{line.description}</Text>
+                    <Text style={styles.approvalOwner}>
+                      {line.currency} {line.amount}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+        {moduleRoute === 'Hospitality overview' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {sp.hospitalityOverviewUpdatedAt ?? 'Not synced yet'}</Text>
+            {moduleError ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Could not load overview</Text>
+                <Text style={styles.emptyStateText}>{moduleError}</Text>
+                <Pressable style={styles.detailsButton} onPress={() => void sp.loadHospitalityOverview()}>
+                  <Text style={styles.detailsButtonText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {sp.hospitalityOverview ? (
+              <>
+                <View style={styles.approvalCard}>
+                  <Text style={styles.approvalSubject}>Properties: {sp.hospitalityOverview.stats.properties}</Text>
+                  <Text style={styles.approvalOwner}>Arrivals today: {sp.hospitalityOverview.stats.arrivals_today}</Text>
+                  <Text style={styles.approvalOwner}>In house: {sp.hospitalityOverview.stats.in_house}</Text>
+                </View>
+                {sp.hospitalityOverview.properties.map((p) => (
+                  <View key={p.id} style={styles.approvalCard}>
+                    <View style={styles.approvalHeader}>
+                      <Text style={styles.approvalId}>{p.name}</Text>
+                      <Text style={styles.approvalStatus}>{p.status}</Text>
+                    </View>
+                    <Text style={styles.approvalOwner}>Room classes: {p.room_classes_count} · Reservations: {p.reservations_count}</Text>
+                  </View>
+                ))}
+              </>
+            ) : null}
+          </View>
+        ) : null}
+        {moduleRoute === 'Rate catalog' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {sp.hospitalityRateCatalogUpdatedAt ?? 'Not synced yet'}</Text>
+            {!moduleError && sp.hospitalityRateCatalog?.items.map((e) => (
+              <View key={e.id} style={styles.approvalCard}>
+                <Text style={styles.approvalId}>{e.product_code ?? '—'} · {e.rate_category_code ?? '—'}</Text>
+                <Text style={styles.approvalOwner}>{e.valid_from ?? '—'} → {e.valid_to ?? '—'}</Text>
+                <Text style={styles.approvalOwner}>{e.currency} {e.amount}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        {moduleRoute === 'Rooms & inventory' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {sp.hospitalityRoomsInventoryUpdatedAt ?? 'Not synced yet'}</Text>
+            {sp.hospitalityRoomsInventory?.room_classes.map((rc) => (
+              <View key={rc.id} style={styles.approvalCard}>
+                <View style={styles.approvalHeader}>
+                  <Text style={styles.approvalId}>{rc.name}</Text>
+                  <Text style={styles.approvalStatus}>{rc.occupancy}</Text>
+                </View>
+                <Text style={styles.approvalOwner}>Rooms: {rc.physical_rooms_count} · Products: {rc.sellable_products_count}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        {moduleRoute === 'Hospitality reports' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {sp.hospitalityReportsUpdatedAt ?? 'Not synced yet'}</Text>
+            {sp.hospitalityReports ? (
+              <View style={styles.approvalCard}>
+                <Text style={styles.approvalSubject}>Date: {sp.hospitalityReports.date}</Text>
+                <Text style={styles.approvalOwner}>Occupancy: {sp.hospitalityReports.occupancy_pct}%</Text>
+                <Text style={styles.approvalOwner}>Rooms sold: {sp.hospitalityReports.rooms_sold} / {sp.hospitalityReports.total_pool}</Text>
+                <Text style={styles.approvalOwner}>Revenue: {sp.hospitalityReports.revenue}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+        {moduleRoute === 'Channel manager' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {sp.hospitalityChannelManagerUpdatedAt ?? 'Not synced yet'}</Text>
+            {sp.hospitalityChannelManager?.accounts.map((a) => (
+              <View key={a.id} style={styles.approvalCard}>
+                <Text style={styles.approvalId}>{a.provider} · {a.environment}</Text>
+                <Text style={styles.approvalOwner}>Mappings: {a.mappings_count}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        {moduleRoute === 'Reservation sales' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {sp.hospitalitySalesUpdatedAt ?? 'Not synced yet'}</Text>
+            {sp.hospitalitySalesItems.map((doc) => (
+              <View key={`${doc.kind}-${doc.id}`} style={styles.approvalCard}>
+                <View style={styles.approvalHeader}>
+                  <Text style={styles.approvalId}>{doc.document_no}</Text>
+                  <Text style={styles.approvalStatus}>{doc.kind}</Text>
+                </View>
+                <Text style={styles.approvalOwner}>{doc.status} · {doc.currency} {doc.total_amount}</Text>
+              </View>
+            ))}
           </View>
         ) : null}
           </>

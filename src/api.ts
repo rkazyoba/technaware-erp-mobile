@@ -639,6 +639,257 @@ export type AttendanceRow = {
   source: string;
 };
 
+export type HospitalityPropertyRef = {
+  id: string;
+  name: string;
+};
+
+export type HospitalityFrontDeskReservation = {
+  id: string;
+  document_no: string | null;
+  guest_name: string | null;
+  arrival_date: string | null;
+  departure_date: string | null;
+  status: string;
+  room_number?: string | null;
+};
+
+export type HospitalityFrontDeskSummary = {
+  today: string;
+  properties: HospitalityPropertyRef[];
+  selected_property_id: string | null;
+  arrivals: HospitalityFrontDeskReservation[];
+  departures: HospitalityFrontDeskReservation[];
+  in_house: HospitalityFrontDeskReservation[];
+};
+
+export type HospitalityHousekeepingRoom = {
+  id: string;
+  room_number: string;
+  status: string;
+  room_class_name: string | null;
+  property_name: string | null;
+};
+
+export type HospitalityHousekeepingSummary = {
+  properties: HospitalityPropertyRef[];
+  selected_property_id: string | null;
+  statuses: Record<string, string>;
+  status_filter: string | null;
+  counts: Record<string, number>;
+  rooms: HospitalityHousekeepingRoom[];
+};
+
+export type HospitalityReservationListItem = {
+  id: string;
+  document_no: string;
+  guest_name: string | null;
+  property_name: string | null;
+  arrival_date: string | null;
+  departure_date: string | null;
+  status: string;
+  room_number: string | null;
+  total_amount: number;
+};
+
+export type HospitalityReservationDetail = {
+  id: string;
+  document_no: string;
+  status: string;
+  arrival_date: string | null;
+  departure_date: string | null;
+  guest: { id: string; name: string; phone?: string | null; email?: string | null } | null;
+  property: { id: string; name: string } | null;
+  room_number: string | null;
+  total_amount: number;
+  folio_balance: number;
+  folio_status: string | null;
+  nights: Array<{
+    date: string | null;
+    product_name: string | null;
+    qty: number;
+    unit_rate: number;
+    line_total: number;
+  }>;
+};
+
+export type HospitalityGuestListItem = {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  country: string | null;
+  status: string;
+};
+
+export type HospitalityGuestDetail = {
+  id: string;
+  name: string;
+  first_name: string;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  country: string | null;
+  document_type: string | null;
+  document_no: string | null;
+  date_of_birth: string | null;
+  status: string;
+  reservations: Array<{
+    id: string;
+    document_no: string;
+    arrival_date: string | null;
+    departure_date: string | null;
+    status: string;
+    total_amount: number;
+  }>;
+};
+
+export type HospitalityFolioListItem = {
+  reservation_id: string;
+  reservation_no: string;
+  guest_name: string | null;
+  property_name: string | null;
+  folio_status: string;
+  folio_balance: number;
+  currency: string;
+  arrival_date: string | null;
+  departure_date: string | null;
+};
+
+export type HospitalityFolioDetail = {
+  reservation_id: string;
+  reservation_no: string;
+  guest_name: string | null;
+  property_name: string | null;
+  currency: string;
+  folio_status: string;
+  folio_balance: number;
+  lines: Array<{
+    id: string;
+    posting_date: string | null;
+    description: string;
+    line_type: string;
+    amount: number;
+    currency: string;
+  }>;
+};
+
+export type HospitalityOverviewSummary = {
+  today: string;
+  stats: {
+    properties: number;
+    arrivals_today: number;
+    in_house: number;
+  };
+  properties: Array<{
+    id: string;
+    name: string;
+    code: string | null;
+    status: string;
+    room_classes_count: number;
+    reservations_count: number;
+  }>;
+};
+
+export type HospitalityRateCatalogEntry = {
+  id: string;
+  product_code: string | null;
+  product_name: string | null;
+  room_class_name: string | null;
+  rate_category_code: string | null;
+  rate_category_name: string | null;
+  valid_from: string | null;
+  valid_to: string | null;
+  amount: number;
+  currency: string;
+  min_stay: number | null;
+};
+
+export type HospitalityRateCatalogSummary = {
+  properties: HospitalityPropertyRef[];
+  selected_property_id: string | null;
+  items: HospitalityRateCatalogEntry[];
+  pagination: PaginationMeta;
+};
+
+export type HospitalityRoomsInventorySummary = {
+  properties: HospitalityPropertyRef[];
+  selected_property_id: string | null;
+  room_classes: Array<{
+    id: string;
+    name: string;
+    code: string | null;
+    occupancy: string;
+    occupancy_label: string;
+    is_active: boolean;
+    physical_rooms_count: number;
+    sellable_products_count: number;
+  }>;
+  physical_rooms: Array<{
+    id: string;
+    room_number: string;
+    status: string;
+    room_class_name: string | null;
+  }>;
+  sellable_products: Array<{
+    id: string;
+    code: string;
+    name: string | null;
+    meal_plan: string | null;
+    room_class_name: string | null;
+  }>;
+};
+
+export type HospitalityReportsSummary = {
+  properties: HospitalityPropertyRef[];
+  selected_property_id: string | null;
+  date: string;
+  rooms_sold: number;
+  total_pool: number;
+  occupancy_pct: number;
+  revenue: number;
+  in_house: number;
+  pool_by_class: Array<{
+    room_class_name: string | null;
+    pool_size: number;
+    sold: number;
+    available: number;
+  }>;
+};
+
+export type HospitalityChannelManagerSummary = {
+  properties: HospitalityPropertyRef[];
+  selected_property_id: string | null;
+  accounts: Array<{
+    id: string;
+    provider: string;
+    environment: string;
+    is_active: boolean;
+    mappings_count: number;
+  }>;
+  recent_sync_logs: Array<{
+    id: string;
+    provider: string | null;
+    direction: string;
+    action: string;
+    status: string;
+    summary: string;
+    created_at: string | null;
+  }>;
+};
+
+export type HospitalitySalesDocument = {
+  id: string;
+  kind: 'quotation' | 'proforma' | 'invoice';
+  document_no: string;
+  status: string;
+  guest_name: string | null;
+  property_name: string | null;
+  date: string | null;
+  total_amount: number;
+  currency: string;
+};
+
 export type SupportTicketSummary = {
   id: string;
   ticket_number: string;
@@ -1961,6 +2212,271 @@ export function getStockReportLines(token: string, storeId: string, page = 1, pe
 
 export function getAttendance(token: string, days = 45) {
   return request<{ items: AttendanceRow[]; from_date: string }>(`/attendance?days=${days}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getHospitalityFrontDeskSummary(token: string, propertyId?: string | null) {
+  const qs = new URLSearchParams();
+  if (propertyId && propertyId.trim() !== '') {
+    qs.set('property_id', propertyId.trim());
+  }
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<HospitalityFrontDeskSummary>(`/hospitality/front-desk/summary${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getHospitalityHousekeepingRooms(
+  token: string,
+  params?: { propertyId?: string | null; status?: string | null },
+) {
+  const qs = new URLSearchParams();
+  if (params?.propertyId && params.propertyId.trim() !== '') {
+    qs.set('property_id', params.propertyId.trim());
+  }
+  if (params?.status && params.status.trim() !== '') {
+    qs.set('status', params.status.trim());
+  }
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<HospitalityHousekeepingSummary>(`/hospitality/housekeeping/rooms${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getHospitalityReservations(
+  token: string,
+  page = 1,
+  perPage = 15,
+  q = '',
+  params?: { propertyId?: string | null; status?: string | null },
+) {
+  const qs = new URLSearchParams({
+    page: String(page),
+    per_page: String(perPage),
+  });
+  const t = q.trim();
+  if (t) {
+    qs.set('q', t);
+  }
+  if (params?.propertyId && params.propertyId.trim() !== '') {
+    qs.set('property_id', params.propertyId.trim());
+  }
+  if (params?.status && params.status.trim() !== '') {
+    qs.set('status', params.status.trim());
+  }
+  return request<{ items: HospitalityReservationListItem[]; pagination: PaginationMeta }>(
+    `/hospitality/reservations?${qs.toString()}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function getHospitalityReservationDetail(token: string, id: string) {
+  return request<HospitalityReservationDetail>(`/hospitality/reservations/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getHospitalityGuests(token: string, page = 1, perPage = 15, q = '') {
+  const qs = new URLSearchParams({
+    page: String(page),
+    per_page: String(perPage),
+  });
+  const t = q.trim();
+  if (t) {
+    qs.set('q', t);
+  }
+  return request<{ items: HospitalityGuestListItem[]; pagination: PaginationMeta }>(`/hospitality/guests?${qs.toString()}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getHospitalityGuestDetail(token: string, id: string) {
+  return request<HospitalityGuestDetail>(`/hospitality/guests/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getHospitalityFolios(token: string, page = 1, perPage = 15, q = '', status?: string | null) {
+  const qs = new URLSearchParams({
+    page: String(page),
+    per_page: String(perPage),
+  });
+  const t = q.trim();
+  if (t) {
+    qs.set('q', t);
+  }
+  if (status && status.trim() !== '') {
+    qs.set('status', status.trim());
+  }
+  return request<{ items: HospitalityFolioListItem[]; pagination: PaginationMeta }>(`/hospitality/folios?${qs.toString()}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getHospitalityFolioDetail(token: string, reservationId: string) {
+  return request<HospitalityFolioDetail>(`/hospitality/reservations/${encodeURIComponent(reservationId)}/folio`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function postHospitalityFolioPayment(token: string, reservationId: string, amount: number, description?: string) {
+  return request<HospitalityFolioDetail>(`/hospitality/reservations/${encodeURIComponent(reservationId)}/folio/payment`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ amount, description }),
+  });
+}
+
+export function postHospitalityFolioCharge(token: string, reservationId: string, amount: number, description: string) {
+  return request<HospitalityFolioDetail>(`/hospitality/reservations/${encodeURIComponent(reservationId)}/folio/charge`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ amount, description }),
+  });
+}
+
+export function getHospitalityOverview(token: string) {
+  return request<HospitalityOverviewSummary>('/hospitality/overview', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getHospitalityRateCatalog(token: string, page = 1, perPage = 20, propertyId?: string | null) {
+  const qs = new URLSearchParams({
+    page: String(page),
+    per_page: String(perPage),
+  });
+  if (propertyId && propertyId.trim() !== '') {
+    qs.set('property_id', propertyId.trim());
+  }
+  return request<HospitalityRateCatalogSummary>(`/hospitality/rate-catalog?${qs.toString()}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getHospitalityRoomsInventory(token: string, propertyId?: string | null) {
+  const qs = new URLSearchParams();
+  if (propertyId && propertyId.trim() !== '') {
+    qs.set('property_id', propertyId.trim());
+  }
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<HospitalityRoomsInventorySummary>(`/hospitality/rooms-inventory${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getHospitalityReportsSummary(token: string, params?: { propertyId?: string | null; date?: string | null }) {
+  const qs = new URLSearchParams();
+  if (params?.propertyId && params.propertyId.trim() !== '') {
+    qs.set('property_id', params.propertyId.trim());
+  }
+  if (params?.date && params.date.trim() !== '') {
+    qs.set('date', params.date.trim());
+  }
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<HospitalityReportsSummary>(`/hospitality/reports/summary${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getHospitalityChannelManagerSummary(token: string, propertyId?: string | null) {
+  const qs = new URLSearchParams();
+  if (propertyId && propertyId.trim() !== '') {
+    qs.set('property_id', propertyId.trim());
+  }
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<HospitalityChannelManagerSummary>(`/hospitality/channel-manager/summary${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getHospitalityReservationSales(
+  token: string,
+  page = 1,
+  perPage = 15,
+  q = '',
+  kind: 'all' | 'quotation' | 'proforma' | 'invoice' = 'all',
+) {
+  const qs = new URLSearchParams({
+    page: String(page),
+    per_page: String(perPage),
+    kind,
+  });
+  const t = q.trim();
+  if (t) {
+    qs.set('q', t);
+  }
+  return request<{ items: HospitalitySalesDocument[]; pagination: PaginationMeta }>(
+    `/hospitality/reservation-sales?${qs.toString()}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export type PosSummary = {
+  orders: number;
+  gross: number;
+  tax: number;
+  by_module: Record<string, { orders: number; gross: number }>;
+};
+
+export type PosTerminalSummary = {
+  id: number;
+  code: string;
+  name: string;
+  site_id: number;
+  store_id?: number | null;
+  hotel_property_id?: number | null;
+};
+
+export type PosPortalSummary = {
+  summary: PosSummary;
+  terminals: PosTerminalSummary[];
+};
+
+export function getPosStandaloneSummary(token: string) {
+  return request<PosPortalSummary>('/pos/standalone/summary', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getPosHospitalitySummary(token: string) {
+  return request<PosPortalSummary>('/pos/hospitality/summary', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getPosReportsSummary(
+  token: string,
+  params?: { source_module?: 'pos_standalone' | 'pos_hospitality'; from?: string; to?: string },
+) {
+  const qs = new URLSearchParams();
+  if (params?.source_module) qs.set('source_module', params.source_module);
+  if (params?.from) qs.set('from', params.from);
+  if (params?.to) qs.set('to', params.to);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<{ summary: PosSummary; reconciliation: PosSummary }>(`/pos/reports/summary${suffix}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });

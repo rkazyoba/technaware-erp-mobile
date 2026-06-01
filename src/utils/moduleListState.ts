@@ -3,6 +3,7 @@ import { isHrCatalogRoute } from '../hooks/hrCatalogPortal';
 import { isLogisticsModule } from '../hooks/useStaffPortalModel';
 import { isAccountingApiListModule } from './accountingPortal';
 import { isFinanceReportMobileModule } from './financeReportPortal';
+import { isHospitalityNativeModule } from './hospitalityPortal';
 import { isOperationalReportMobileModule } from './operationalReportPortal';
 import { webPathForPortalSurface } from './portalWebSurfaces';
 
@@ -14,7 +15,7 @@ export function moduleListHasItems(moduleRoute: string, sp: StaffPortalModel): b
   if (isAccountingApiListModule(moduleRoute)) {
     return sp.accountingListRoute === moduleRoute && sp.accountingListItems.length > 0;
   }
-  if (webPathForPortalSurface(moduleRoute, sp.portal) && moduleRoute !== 'Stock by store') {
+  if (webPathForPortalSurface(moduleRoute, sp.portal) && moduleRoute !== 'Stock by store' && !isHospitalityNativeModule(moduleRoute)) {
     return true;
   }
   if (isHrCatalogRoute(moduleRoute)) {
@@ -72,6 +73,30 @@ export function moduleListHasItems(moduleRoute: string, sp: StaffPortalModel): b
       return sp.stockStores.length > 0 || sp.stockLines.length > 0;
     case 'Attendance':
       return sp.attendanceItems.length > 0;
+    case 'Front desk':
+      return (sp.hospitalityFrontDesk?.arrivals.length ?? 0) > 0
+        || (sp.hospitalityFrontDesk?.departures.length ?? 0) > 0
+        || (sp.hospitalityFrontDesk?.in_house.length ?? 0) > 0;
+    case 'Housekeeping':
+      return (sp.hospitalityHousekeeping?.rooms.length ?? 0) > 0;
+    case 'Reservations':
+      return sp.hospitalityReservationItems.length > 0;
+    case 'Guests':
+      return sp.hospitalityGuestItems.length > 0;
+    case 'Folios & billing':
+      return sp.hospitalityFolioItems.length > 0 || sp.hospitalityFolioDetail !== null;
+    case 'Hospitality overview':
+      return sp.hospitalityOverview !== null;
+    case 'Rate catalog':
+      return (sp.hospitalityRateCatalog?.items.length ?? 0) > 0;
+    case 'Rooms & inventory':
+      return (sp.hospitalityRoomsInventory?.room_classes.length ?? 0) > 0;
+    case 'Reservation sales':
+      return sp.hospitalitySalesItems.length > 0;
+    case 'Channel manager':
+      return (sp.hospitalityChannelManager?.accounts.length ?? 0) > 0;
+    case 'Hospitality reports':
+      return sp.hospitalityReports !== null;
     case 'Approvals':
       return sp.approvalItems.length > 0;
     default:

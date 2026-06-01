@@ -51,6 +51,9 @@ export type RecordDetailParams = {
     | 'hr_leave_type'
     | 'hr_payroll_run'
     | 'payslip'
+    | 'hospitality_reservation'
+    | 'hospitality_guest'
+    | 'hospitality_folio'
     | AccountingRecordDetailKind
     | 'portal_web_surface';
   recordId: string;
@@ -77,6 +80,11 @@ export type ModulesStackParamList = {
     financePreset?: FinanceReportPreset;
   };
   ModuleWorkspace: { moduleRoute: string };
+  HospitalityDetail: {
+    detailKind: 'reservation' | 'guest' | 'folio';
+    recordId: string;
+    titleHint?: string;
+  };
   RecordDetail: RecordDetailParams;
   Approvals: { approvalId?: string; typeFilter?: string; kindFilter?: string } | undefined;
   StoreMovementHeader: { initialKind?: 'k2s' | 's2k' } | undefined;

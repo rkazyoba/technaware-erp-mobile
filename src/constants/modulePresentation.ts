@@ -18,6 +18,21 @@ export function moduleColorStyles(family: ModuleColorFamily) {
 export type IonGlyph = string;
 
 export const MODULE_ICON: Record<string, IonGlyph> = {
+  hospitality_front_desk: 'bed-outline',
+  hospitality_housekeeping: 'broom-outline',
+  hospitality_overview: 'home-outline',
+  hospitality_reservations: 'calendar-outline',
+  hospitality_guests: 'people-outline',
+  hospitality_folios: 'receipt-outline',
+  hospitality_rates: 'pricetags-outline',
+  hospitality_rooms: 'business-outline',
+  hospitality_sales: 'cash-outline',
+  hospitality_channel_manager: 'git-network-outline',
+  hospitality_reports: 'stats-chart-outline',
+  pos_standalone_sales: 'cart-outline',
+  pos_standalone_reports: 'stats-chart-outline',
+  pos_hospitality_sales: 'restaurant-outline',
+  pos_hospitality_reports: 'bar-chart-outline',
   notifications: 'notifications-outline',
   approvals: 'checkmark-done-outline',
   support: 'headset-outline',
@@ -95,6 +110,21 @@ export function moduleIconForSurfaceId(id: string): IonGlyph {
 
 export function colorFamilyForSurfaceId(id: string): ModuleColorFamily {
   const map: Record<string, ModuleColorFamily> = {
+    hospitality_front_desk: 'teal',
+    hospitality_housekeeping: 'amber',
+    hospitality_overview: 'navy',
+    hospitality_reservations: 'blue',
+    hospitality_guests: 'green',
+    hospitality_folios: 'purple',
+    hospitality_rates: 'amber',
+    hospitality_rooms: 'teal',
+    hospitality_sales: 'coral',
+    hospitality_channel_manager: 'slate',
+    hospitality_reports: 'navy',
+    pos_standalone_sales: 'green',
+    pos_standalone_reports: 'teal',
+    pos_hospitality_sales: 'amber',
+    pos_hospitality_reports: 'purple',
     notifications: 'coral',
     approvals: 'amber',
     support: 'slate',
@@ -169,6 +199,7 @@ export function colorFamilyForSurfaceId(id: string): ModuleColorFamily {
 }
 
 export const CATEGORY_LABELS: Record<string, string> = {
+  hospitality: 'Hospitality',
   inventory_logistics: 'Inventory & logistics',
   stock_parts: 'Stock & stores',
   parts_management: 'Parts management',

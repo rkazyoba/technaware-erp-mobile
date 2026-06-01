@@ -14,6 +14,7 @@ import { ModulesScreen } from '../screens/ModulesScreen';
 import { PayslipScreen } from '../screens/PayslipScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { RecordDetailScreen } from '../screens/RecordDetailScreen';
+import { HospitalityDetailScreen } from '../screens/HospitalityDetailScreen';
 import { ReportsScreen } from '../screens/ReportsScreen';
 import { StoreMovementHeaderScreen } from '../screens/StoreMovementHeaderScreen';
 import { StoreMovementLinesScreen } from '../screens/StoreMovementLinesScreen';
@@ -50,6 +51,7 @@ function ModulesNavigator() {
       <ModulesStack.Screen name="ModuleWorkspace" component={ModuleWorkspaceScreen} />
       <ModulesStack.Screen name="Profile" component={ProfileScreen} />
       <ModulesStack.Screen name="RecordDetail" component={RecordDetailScreen} />
+      <ModulesStack.Screen name="HospitalityDetail" component={HospitalityDetailScreen} />
       <ModulesStack.Screen name="StoreMovementHeader" component={StoreMovementHeaderScreen} />
       <ModulesStack.Screen name="StoreMovementLines" component={StoreMovementLinesScreen} />
       <ModulesStack.Screen name="DeliveryNoteHeader" component={DeliveryNoteHeaderScreen} />

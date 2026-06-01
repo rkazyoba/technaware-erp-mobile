@@ -11,6 +11,7 @@ import { useStaffPortal } from '../context/StaffPortalContext';
 import type { ModulesStackParamList } from '../navigation/moduleStackTypes';
 import { isAccountingApiListModule } from '../utils/accountingPortal';
 import { isFinanceReportMobileModule } from '../utils/financeReportPortal';
+import { isHospitalityNativeModule } from '../utils/hospitalityPortal';
 import { portalModuleAccessGate } from '../utils/portalModuleAccess';
 import { webPathForPortalSurface } from '../utils/portalWebSurfaces';
 import { ModuleLegacyPanel } from './module/ModuleLegacyPanel';
@@ -28,7 +29,8 @@ export function ModuleWorkspaceScreen() {
     Boolean(portalWebPath) &&
     !isAccountingApiListModule(routeModule) &&
     !isFinanceReportMobileModule(routeModule) &&
-    routeModule !== 'Stock by store';
+    routeModule !== 'Stock by store' &&
+    !isHospitalityNativeModule(routeModule);
   const portalSurfaceRow = useMemo(
     () => portal?.surfaces?.find((s) => s.visible && s.route === routeModule),
     [portal?.surfaces, routeModule],
