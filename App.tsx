@@ -5,11 +5,12 @@ import {
   Outfit_700Bold,
   useFonts,
 } from '@expo-google-fonts/outfit';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar as RNStatusBar, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StatusBar as RNStatusBar, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { API_BASE_URL, login, logout, me, setSessionInvalidHandler } from './src/api';
+import { API_BASE_URL, ApiRequestError, login, logout, me, setSessionInvalidHandler } from './src/api';
 import { Toast, ToastType } from './src/components/Toast';
 import { colors } from './src/constants/colors';
 import { AppNavigator } from './src/navigation/AppNavigator';
@@ -24,6 +25,10 @@ import {
 } from './src/sessionStorage';
 import { styles } from './src/styles/appStyles';
 import { MobilePortalBootstrap, RefreshProfileOptions, SignedInUser } from './src/types/app';
+
+SplashScreen.preventAutoHideAsync().catch(() => {
+  /* Dev fast-refresh may hide splash before preventAutoHideAsync runs. */
+});
 
 function AppContent() {
   const insets = useSafeAreaInsets();
@@ -83,6 +88,12 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
+    if (fontsLoaded && !hydrating) {
+      void SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, hydrating]);
+
+  useEffect(() => {
     let cancelled = false;
 
     setSessionInvalidHandler((failedToken) => {
@@ -129,8 +140,14 @@ function AppContent() {
               setPortal(profile.data.portal ?? null);
               await persistAuthSession(session.token, JSON.stringify(profile.data.user));
             }
-          } catch {
-            /* offline or revoked; 401 handler may have cleared state */
+          } catch (err: unknown) {
+            if (!cancelled && err instanceof ApiRequestError && (err.httpStatus === 401 || err.httpStatus === 403)) {
+              authGenerationRef.current += 1;
+              await clearAuthSession();
+              setToken('');
+              setUser(null);
+              setPortal(null);
+            }
           }
         }
       } finally {
@@ -250,15 +267,7 @@ function AppContent() {
   }, [token]);
 
   if (hydrating || !fontsLoaded) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.pageBg }}>
-        <View style={{ height: insets.top, backgroundColor: statusBarBg }} />
-        {Platform.OS === 'android' ? <RNStatusBar translucent backgroundColor="transparent" barStyle="light-content" /> : null}
-        <View style={[styles.safe, { flex: 1, justifyContent: 'center' }]}>
-          <ActivityIndicator size="large" color={colors.accentTeal} />
-        </View>
-      </View>
-    );
+    return null;
   }
 
   return (

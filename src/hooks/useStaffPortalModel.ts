@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { clearMobileSummaryCache, loadMobileSummaryCache, saveMobileSummaryCache } from '../utils/mobileSummaryStorage';
 import {
   staffPortalHasPermission,
   visibleStoreMovementKindsForPortal,
@@ -223,12 +223,6 @@ const PORTAL_SNAPSHOT_TTL_MS = 2 * 60 * 1000;
 
 /** Persisted summary used for instant paint on cold start; older entries are ignored. */
 const MOBILE_SUMMARY_DISK_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-
-const MOBILE_SUMMARY_STORAGE_PREFIX = 'erp_mobile_summary_v1:';
-
-function mobileSummaryStorageKey(token: string): string {
-  return `${MOBILE_SUMMARY_STORAGE_PREFIX}${token.slice(-28)}`;
-}
 
 function formatShortTime(epochMs: number): string {
   return new Date(epochMs).toLocaleTimeString([], {
@@ -2304,12 +2298,12 @@ export function useStaffPortalModel({
           const networkAt = Date.now();
           lastMobileSummaryNetworkAtRef.current = networkAt;
           setMobileSummaryUpdatedAt(formatNow());
-          void AsyncStorage.setItem(
-            mobileSummaryStorageKey(token),
-            JSON.stringify({ networkAt, data: res.data }),
-          ).catch(() => {
-            /* ignore persist errors */
-          });
+          const userId = String(user?.id ?? '');
+          if (userId !== '') {
+            void saveMobileSummaryCache(userId, JSON.stringify({ networkAt, data: res.data })).catch(() => {
+              /* ignore persist errors */
+            });
+          }
         } catch (error) {
           if (seq !== mobileSummaryFetchSeqRef.current) {
             return;
@@ -2330,11 +2324,15 @@ export function useStaffPortalModel({
       mobileSummaryLoadQueueRef.current = queued.catch(() => {});
       return queued;
     },
-    [token],
+    [token, user?.id],
   );
 
   useEffect(() => {
     if (!token) {
+      const prevUserId = String(user?.id ?? '');
+      if (prevUserId !== '') {
+        void clearMobileSummaryCache(prevUserId);
+      }
       lastMobileSummaryNetworkAtRef.current = 0;
       lastApprovalsNetworkAtRef.current = 0;
       mobileSummaryLoadQueueRef.current = Promise.resolve();
@@ -2350,7 +2348,8 @@ export function useStaffPortalModel({
     let cancelled = false;
     void (async () => {
       try {
-        const raw = await AsyncStorage.getItem(mobileSummaryStorageKey(token));
+        const userId = String(user?.id ?? '');
+        const raw = userId !== '' ? await loadMobileSummaryCache(userId) : null;
         if (cancelled) {
           return;
         }
@@ -2384,7 +2383,7 @@ export function useStaffPortalModel({
     return () => {
       cancelled = true;
     };
-  }, [token, loadMobileSummary]);
+  }, [token, user?.id, loadMobileSummary]);
 
   const loadLeaveRequestDetail = useCallback(async (id: string) => {
     setModuleLoading(true);

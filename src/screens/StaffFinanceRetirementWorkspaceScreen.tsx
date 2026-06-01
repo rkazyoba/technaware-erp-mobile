@@ -8,13 +8,13 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
   TextInput,
   View,
 } from 'react-native';
+import { safeOpenUrl } from '../utils/safeOpenUrl';
 import {
   deleteStaffFinanceLine,
   getPettyCashRequestDetail,
@@ -31,7 +31,9 @@ import { StaffFinanceLinesPanel } from '../components/finance/StaffFinanceLinesP
 import { StaffFinanceReadOnlyField } from '../components/finance/StaffFinanceReadOnlyField';
 import { colors } from '../constants/colors';
 import { outfit } from '../constants/typography';
+import { ScreenAccessDenied } from '../components/ScreenAccessDenied';
 import { useStaffPortal } from '../context/StaffPortalContext';
+import { useScreenAccessGate } from '../hooks/useScreenAccessGate';
 import type { ModulesStackParamList } from '../navigation/moduleStackTypes';
 import { styles } from '../styles/appStyles';
 
@@ -46,7 +48,12 @@ export function StaffFinanceRetirementWorkspaceScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ModulesStackParamList>>();
   const route = useRoute<RouteProp<ModulesStackParamList, 'StaffFinanceRetirementWorkspace'>>();
   const { retirementId } = route.params;
-  const { token, setPortalActiveTab, setPortalSelectedModule, onPortalNotify } = useStaffPortal();
+  const { token, portal, setPortalActiveTab, setPortalSelectedModule, onPortalNotify } = useStaffPortal();
+  const access = useScreenAccessGate({
+    portal,
+    moduleRoute: route.params.moduleRoute ?? 'Staff finance',
+    requireUpdate: true,
+  });
 
   const [detail, setDetail] = useState<PettyCashRequestDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -255,6 +262,10 @@ export function StaffFinanceRetirementWorkspaceScreen() {
     );
   }
 
+  if (access.moduleGate === 'denied' || !access.canUpdate) {
+    return <ScreenAccessDenied message={access.deniedMessage} />;
+  }
+
   const tabs = [
     { id: TAB_OVERVIEW, label: 'Overview' },
     { id: TAB_DETAILS, label: 'Details' },
@@ -419,7 +430,7 @@ export function StaffFinanceRetirementWorkspaceScreen() {
               At least one document is required before submit.
             </Text>
             {(detail?.attachments ?? []).map((att) => (
-              <Pressable key={att.id} onPress={() => void Linking.openURL(att.download_url)} style={{ marginBottom: 8 }}>
+              <Pressable key={att.id} onPress={() => void safeOpenUrl(att.download_url)} style={{ marginBottom: 8 }}>
                 <Text style={{ color: colors.accentTeal, ...outfit('medium', 13) }}>{att.name}</Text>
               </Pressable>
             ))}

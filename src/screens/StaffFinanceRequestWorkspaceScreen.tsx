@@ -8,13 +8,13 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
   TextInput,
   View,
 } from 'react-native';
+import { safeOpenUrl } from '../utils/safeOpenUrl';
 import {
   deleteStaffFinanceLine,
   getPettyCashRequestDetail,
@@ -41,7 +41,9 @@ import {
 } from '../constants/staffFinance';
 import { colors } from '../constants/colors';
 import { outfit } from '../constants/typography';
+import { ScreenAccessDenied } from '../components/ScreenAccessDenied';
 import { useStaffPortal } from '../context/StaffPortalContext';
+import { useScreenAccessGate } from '../hooks/useScreenAccessGate';
 import { useModulesTabScrollInsets } from '../hooks/useModulesTabScrollInsets';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { ModulesStackParamList } from '../navigation/moduleStackTypes';
@@ -58,7 +60,12 @@ export function StaffFinanceRequestWorkspaceScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ModulesStackParamList>>();
   const route = useRoute<RouteProp<ModulesStackParamList, 'StaffFinanceRequestWorkspace'>>();
   const { requestId, requestType, moduleRoute, initialTab } = route.params;
-  const { token, setPortalActiveTab, setPortalSelectedModule, onPortalNotify } = useStaffPortal();
+  const { token, portal, setPortalActiveTab, setPortalSelectedModule, onPortalNotify } = useStaffPortal();
+  const access = useScreenAccessGate({
+    portal,
+    moduleRoute: moduleRoute ?? 'Staff finance',
+    requireUpdate: true,
+  });
   const { scrollBottomPadding, keyboardVerticalOffset } = useModulesTabScrollInsets();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -327,6 +334,14 @@ export function StaffFinanceRequestWorkspaceScreen() {
     );
   }
 
+  if (access.moduleGate === 'denied' || !access.canUpdate) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.pageBg }} edges={['top', 'left', 'right', 'bottom']}>
+        <ScreenAccessDenied message={access.deniedMessage} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.pageBg }} edges={['top', 'left', 'right']}>
       <View
@@ -537,7 +552,7 @@ export function StaffFinanceRequestWorkspaceScreen() {
               At least one receipt is required before submit.
             </Text>
             {(detail?.attachments ?? []).map((att) => (
-              <Pressable key={att.id} onPress={() => void Linking.openURL(att.download_url)} style={{ marginBottom: 8 }}>
+              <Pressable key={att.id} onPress={() => void safeOpenUrl(att.download_url)} style={{ marginBottom: 8 }}>
                 <Text style={{ color: colors.accentTeal, ...outfit('medium', 13) }}>{att.name}</Text>
               </Pressable>
             ))}

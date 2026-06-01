@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
 const TOKEN_KEY = 'erp_mobile_auth_token_v1';
@@ -35,16 +34,20 @@ export async function clearAuthSession(): Promise<void> {
 export async function saveRememberedUsername(username: string): Promise<void> {
   const trimmed = username.trim();
   if (!trimmed) {
-    await AsyncStorage.removeItem(SAVED_USERNAME_KEY);
+    await SecureStore.deleteItemAsync(SAVED_USERNAME_KEY);
     return;
   }
-  await AsyncStorage.setItem(SAVED_USERNAME_KEY, trimmed);
+  await SecureStore.setItemAsync(SAVED_USERNAME_KEY, trimmed);
 }
 
 export async function clearRememberedUsername(): Promise<void> {
-  await AsyncStorage.removeItem(SAVED_USERNAME_KEY);
+  try {
+    await SecureStore.deleteItemAsync(SAVED_USERNAME_KEY);
+  } catch {
+    /* missing key */
+  }
 }
 
 export async function loadRememberedUsername(): Promise<string | null> {
-  return AsyncStorage.getItem(SAVED_USERNAME_KEY);
+  return SecureStore.getItemAsync(SAVED_USERNAME_KEY);
 }

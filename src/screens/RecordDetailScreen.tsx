@@ -3,6 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, View } from 'react-native';
+import { safeOpenUrl } from '../utils/safeOpenUrl';
 import { Text, TextInput } from '../components/AppTypography';
 import { approveItem, getApprovalDetail, rejectItem, type ApprovalDetail, type CrmQuotationDetail } from '../api';
 import {
@@ -2177,7 +2178,7 @@ export function RecordDetailScreen() {
               <View style={{ marginTop: 10 }}>
                 <Text style={{ ...outfit('medium', 13), color: colors.textPrimary }}>Receipts</Text>
                 {financeDetail.pettyCash.attachments.map((att) => (
-                  <Pressable key={att.id} onPress={() => void Linking.openURL(att.download_url)} style={{ marginTop: 6 }}>
+                  <Pressable key={att.id} onPress={() => void safeOpenUrl(att.download_url)} style={{ marginTop: 6 }}>
                     <Text style={{ ...outfit('medium', 13), color: colors.accentTeal }}>{att.name}</Text>
                   </Pressable>
                 ))}

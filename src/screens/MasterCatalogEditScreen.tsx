@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Text } from '../components/AppTypography';
 import {
@@ -17,8 +17,11 @@ import {
 } from '../api';
 import { colors } from '../constants/colors';
 import { outfit } from '../constants/typography';
+import { ScreenAccessDenied } from '../components/ScreenAccessDenied';
 import { useStaffPortal } from '../context/StaffPortalContext';
+import { useScreenAccessGate } from '../hooks/useScreenAccessGate';
 import type { ModulesStackParamList } from '../navigation/moduleStackTypes';
+import type { CrudResource } from '../utils/crudPermissions';
 
 type CatalogKind = 'supplier' | 'unit' | 'category';
 
@@ -27,7 +30,23 @@ export function MasterCatalogEditScreen() {
   const route = useRoute<RouteProp<ModulesStackParamList, 'MasterCatalogEdit'>>();
   const { kind, recordId, moduleRoute } = route.params;
   const isEdit = Boolean(recordId?.trim());
-  const { token } = useStaffPortal();
+  const { token, portal } = useStaffPortal();
+
+  const catalogAccess = useMemo(() => {
+    const moduleRoute =
+      kind === 'supplier' ? 'Suppliers' : kind === 'unit' ? 'Units' : 'Categories';
+    const resource: CrudResource =
+      kind === 'supplier' ? 'suppliers' : kind === 'unit' ? 'units' : 'categories';
+    return { moduleRoute, resource };
+  }, [kind]);
+
+  const access = useScreenAccessGate({
+    portal,
+    moduleRoute: catalogAccess.moduleRoute,
+    resource: catalogAccess.resource,
+    requireCreate: !isEdit,
+    requireUpdate: isEdit,
+  });
 
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
@@ -140,6 +159,10 @@ export function MasterCatalogEditScreen() {
       setSaving(false);
     }
   };
+
+  if (access.moduleGate === 'denied' || (isEdit && !access.canUpdate) || (!isEdit && !access.canCreate)) {
+    return <ScreenAccessDenied message={access.deniedMessage} />;
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.pageBg }}>

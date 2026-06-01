@@ -12,7 +12,9 @@ import {
 import { Text } from '../components/AppTypography';
 import { colors } from '../constants/colors';
 import { outfit } from '../constants/typography';
+import { ScreenAccessDenied } from '../components/ScreenAccessDenied';
 import { useStaffPortal } from '../context/StaffPortalContext';
+import { useScreenAccessGate } from '../hooks/useScreenAccessGate';
 import type { ModulesStackParamList } from '../navigation/moduleStackTypes';
 import { styles } from '../styles/appStyles';
 
@@ -22,7 +24,12 @@ type Route = RouteProp<ModulesStackParamList, 'CustomerPaymentRecord'>;
 export function CustomerPaymentRecordScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const { token } = useStaffPortal();
+  const { token, portal } = useStaffPortal();
+  const access = useScreenAccessGate({
+    portal,
+    moduleRoute: 'Customer invoices',
+    requireUpdate: true,
+  });
   const { invoiceId, invoiceRef, dueAmount, currency } = route.params;
 
   const [loading, setLoading] = useState(true);
@@ -78,6 +85,10 @@ export function CustomerPaymentRecordScreen() {
       setSubmitting(false);
     }
   };
+
+  if (access.moduleGate === 'denied' || !access.canUpdate) {
+    return <ScreenAccessDenied message={access.deniedMessage} />;
+  }
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.pageBg }} contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>

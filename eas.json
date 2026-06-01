@@ -1,0 +1,27 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://technawaresolutions.co.tz/api/v1",
+        "EXPO_PUBLIC_API_TIMEOUT_MS": "45000"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://technawaresolutions.co.tz/api/v1",
+        "EXPO_PUBLIC_API_TIMEOUT_MS": "45000"
+      }
+    }
+  }
+}

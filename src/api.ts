@@ -976,6 +976,16 @@ function bearerTokenFromHeaders(headers: Headers): string | null {
   return v.slice('Bearer '.length).trim() || null;
 }
 
+export class ApiRequestError extends Error {
+  readonly httpStatus: number;
+
+  constructor(message: string, httpStatus: number) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.httpStatus = httpStatus;
+  }
+}
+
 /** Hide raw SQL / stack traces from login and other API toasts. */
 function sanitizeClientErrorMessage(message: string): string {
   const trimmed = message.trim();
@@ -1073,7 +1083,7 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<ApiEnvel
         response.status === 429
           ? 'Too many requests. Wait about a minute, then try again.'
           : sanitizeClientErrorMessage(rawMessage);
-      throw new Error(friendly429);
+      throw new ApiRequestError(friendly429, response.status);
     }
 
     if (!payload) {
