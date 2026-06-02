@@ -228,6 +228,12 @@ export type RequisitionSourcingSnapshot = {
 
 export type RequisitionDetail = RequisitionListItem & {
   approval_comment?: string | null;
+  priority?: string;
+  priority_label?: string;
+  site_id?: string;
+  store_id?: string;
+  editable?: boolean;
+  can_submit_for_approval?: boolean;
   lines: Array<{
     id: string;
     category: string;
@@ -237,6 +243,27 @@ export type RequisitionDetail = RequisitionListItem & {
   }>;
   /** Present when procurement RFQ tables exist (read-only). */
   sourcing?: RequisitionSourcingSnapshot;
+};
+
+export type RequisitionCreateContext = {
+  suggested_requisition_no: string;
+  default_site_id: string | null;
+  default_store_id: string | null;
+  requestor_id: string;
+  buyer_id: string | null;
+  requested_date: string;
+  sites: Array<{ id: string; label: string }>;
+  stores: Array<{ id: string; site_id: string; label: string }>;
+  priorities: Array<{ value: string; label: string }>;
+};
+
+export type RequisitionLineStoreItem = {
+  id: string;
+  code: string;
+  description: string;
+  category_id: string;
+  unit_id: string;
+  unit: string;
 };
 
 export type PurchaseOrderListItem = {
@@ -466,10 +493,14 @@ export type ProductListItem = {
   code: string;
   name: string;
   category_id: string;
+  category?: string;
   unit_id: string;
+  unit?: string;
   status: string;
   product_type: string;
 };
+
+export type ProductDetail = ProductListItem;
 
 export type BankMasterListItem = {
   id: string;
@@ -522,7 +553,92 @@ export type PartCatalogItem = {
 };
 
 export type PartCatalogDetail = PartCatalogItem & {
+  unit_id?: string | null;
+  category_id?: string | null;
+  supplier_id?: string | null;
+  tracking_method?: string;
   stock_by_store: Array<{ store_name: string; quantity: number; status: string }>;
+};
+
+export type PartInStoreListItem = {
+  id: string;
+  code: string;
+  description: string;
+  status: string;
+  store_id: string | null;
+  store_name: string;
+  unit: string;
+  quantity: number;
+  min_qty: number;
+  max_qty: number;
+  catalog_part_id: string | null;
+  catalog_part_code: string;
+  tenant_catalog_qty: number | null;
+};
+
+export type PartInStoreDetail = PartInStoreListItem & {
+  tracking_method: string;
+  category: string;
+  supplier: string;
+  catalog_part_description: string;
+};
+
+export type PartExpirationListItem = {
+  id: string;
+  receipt_id: string;
+  receipt_no: string;
+  part_in_store_id: string;
+  part_code: string;
+  part_description: string;
+  batch_number: string | null;
+  manufacture_date: string | null;
+  expired_date: string | null;
+  quantity: number;
+  status: string;
+};
+
+export type PartExpirationDetail = PartExpirationListItem & {
+  po_receipt_line_id: string | null;
+  line_received_qty: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type PartConversionListItem = {
+  id: string;
+  part_id: string;
+  part_code: string;
+  part_description: string;
+  order_unit_id: string;
+  order_unit: string;
+  exchange_rate: number;
+};
+
+export type PartConversionDetail = PartConversionListItem & {
+  part_status: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type PriceCatalogListItem = {
+  id: string;
+  part_id: string;
+  part_code: string;
+  part_description: string;
+  price: number;
+  currency: string;
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+  is_consumption_active: boolean;
+};
+
+export type PriceCatalogDetail = PriceCatalogListItem & {
+  source: string;
+  notes?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  sibling_rows: PriceCatalogListItem[];
 };
 
 export type LogisticsDocListItem = {
@@ -1310,6 +1426,41 @@ export function getLeaveRequest(token: string, id: string) {
   });
 }
 
+export type LeaveApprovalQueueItem = {
+  id: string;
+  approval_id: string;
+  approval_kind: string;
+  employee_name: string;
+  employee_code: string;
+  leave_type: string;
+  date_start: string | null;
+  date_end: string | null;
+  days_requested: number | null;
+  status: string;
+  notes?: string | null;
+  created_at?: string | null;
+};
+
+export function getManagerLeaveApprovalQueue(token: string, page = 1, perPage = 15) {
+  return request<{ items: LeaveApprovalQueueItem[]; pagination: PaginationMeta }>(
+    `/hr/leave-approvals/manager-queue?page=${page}&per_page=${perPage}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function getHrLeaveApprovalQueue(token: string, page = 1, perPage = 15) {
+  return request<{ items: LeaveApprovalQueueItem[]; pagination: PaginationMeta }>(
+    `/hr/leave-approvals/hr-queue?page=${page}&per_page=${perPage}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
 export function getMobileSummary(token: string) {
   return request<MobileSummary>('/mobile/summary', {
     method: 'GET',
@@ -1861,6 +2012,13 @@ export function getProducts(token: string, page = 1, perPage = 50, q = '', categ
   });
 }
 
+export function getProductDetail(token: string, id: string) {
+  return request<ProductDetail>(`/master-data/products/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 export function getBankMasterList(token: string, page = 1, perPage = 15, q = '') {
   return request<{ items: BankMasterListItem[]; pagination: PaginationMeta }>(`/master-data/banks?${masterDataQs(page, perPage, q)}`, {
     method: 'GET',
@@ -1923,6 +2081,101 @@ export function getRequisitions(token: string, page = 1, perPage = 10) {
 export function getRequisitionDetail(token: string, id: string) {
   return request<RequisitionDetail>(`/requisitions/${id}`, {
     method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getRequisitionCreateContext(token: string) {
+  return request<RequisitionCreateContext>('/requisitions/create-context', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function postRequisitionHeader(
+  token: string,
+  payload: {
+    requisition_no?: string;
+    description: string;
+    priority: string;
+    site_id: string;
+    store_id: string;
+    buyer?: string;
+    requestor?: string;
+    requested_date?: string;
+  },
+) {
+  return request<{ id: string; ref: string }>('/requisitions/header', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function putRequisitionHeader(
+  token: string,
+  id: string,
+  payload: { description: string; priority: string },
+) {
+  return request<{ id: string }>(`/requisitions/${encodeURIComponent(id)}/header`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function postRequisitionSubmitForApproval(token: string, id: string) {
+  return request<{ id: string; status: string; status_label: string }>(
+    `/requisitions/${encodeURIComponent(id)}/submit-for-approval`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function getRequisitionLineCategories(token: string) {
+  return request<{ items: Array<{ id: string; name: string }> }>('/requisitions/line-categories', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getRequisitionLineStoreItems(token: string, storeId: string, categoryId: string, q = '') {
+  const qs = new URLSearchParams({ store_id: storeId, category_id: categoryId });
+  if (q.trim()) qs.set('q', q.trim());
+  return request<{ items: RequisitionLineStoreItem[] }>(`/requisitions/line-store-items?${qs.toString()}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function postRequisitionLines(
+  token: string,
+  id: string,
+  lines: Array<{ category_id: string; requested_item: string; unit_id: string; quantity: number }>,
+) {
+  return request<{ inserted: number; skipped_duplicates: number; skipped_invalid: number }>(
+    `/requisitions/${encodeURIComponent(id)}/lines`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lines }),
+    },
+  );
+}
+
+export function putRequisitionLineQuantity(token: string, requisitionId: string, lineId: string, quantity: number) {
+  return request<{ id: string }>(`/requisitions/${encodeURIComponent(requisitionId)}/lines/${encodeURIComponent(lineId)}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quantity }),
+  });
+}
+
+export function deleteRequisitionLine(token: string, requisitionId: string, lineId: string) {
+  return request<null>(`/requisitions/${encodeURIComponent(requisitionId)}/lines/${encodeURIComponent(lineId)}`, {
+    method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
 }
@@ -1997,6 +2250,252 @@ export function getPartCatalog(token: string, page = 1, perPage = 15, q = '') {
 export function getPartCatalogDetail(token: string, id: string) {
   return request<PartCatalogDetail>(`/parts/${id}`, {
     method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+function partsMgmtQs(page: number, perPage: number, q: string, extra?: Record<string, string>) {
+  const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  const t = q.trim();
+  if (t) {
+    qs.set('q', t);
+  }
+  if (extra) {
+    for (const [k, v] of Object.entries(extra)) {
+      if (v !== '') {
+        qs.set(k, v);
+      }
+    }
+  }
+  return qs;
+}
+
+export function getPartsInStore(token: string, page = 1, perPage = 15, q = '') {
+  return request<{ items: PartInStoreListItem[]; pagination: PaginationMeta }>(
+    `/parts/in-store?${partsMgmtQs(page, perPage, q).toString()}`,
+    { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
+  );
+}
+
+export function getPartInStoreDetail(token: string, id: string) {
+  return request<PartInStoreDetail>(`/parts/in-store/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getPartExpirations(token: string, page = 1, perPage = 15, q = '', expiringWithinDays = 0) {
+  const extra: Record<string, string> = {};
+  if (expiringWithinDays > 0) {
+    extra.expiring_within_days = String(expiringWithinDays);
+  }
+  return request<{ items: PartExpirationListItem[]; pagination: PaginationMeta }>(
+    `/parts/expirations?${partsMgmtQs(page, perPage, q, extra).toString()}`,
+    { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
+  );
+}
+
+export function getPartExpirationDetail(token: string, id: string) {
+  return request<PartExpirationDetail>(`/parts/expirations/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getPartConversions(token: string, page = 1, perPage = 15, q = '') {
+  return request<{ items: PartConversionListItem[]; pagination: PaginationMeta }>(
+    `/parts/conversions?${partsMgmtQs(page, perPage, q).toString()}`,
+    { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
+  );
+}
+
+export function getPartConversionDetail(token: string, id: string) {
+  return request<PartConversionDetail>(`/parts/conversions/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getPriceCatalog(token: string, page = 1, perPage = 15, q = '', activeOnly = false) {
+  const extra: Record<string, string> = {};
+  if (activeOnly) {
+    extra.active_only = '1';
+  }
+  return request<{ items: PriceCatalogListItem[]; pagination: PaginationMeta }>(
+    `/parts/price-catalog?${partsMgmtQs(page, perPage, q, extra).toString()}`,
+    { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
+  );
+}
+
+export function getPriceCatalogDetail(token: string, id: string) {
+  return request<PriceCatalogDetail>(`/parts/price-catalog/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export type PickerOption = { id: string; label: string; code?: string };
+
+export type PartCatalogCreateContext = {
+  units: PickerOption[];
+  categories: PickerOption[];
+  suppliers: PickerOption[];
+  statuses: string[];
+};
+
+export function getPartCatalogCreateContext(token: string) {
+  return request<PartCatalogCreateContext>('/parts/create-context', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export type PartInStoreCreateContext = {
+  suggested_code: string;
+  stores: Array<{ id: string; name: string; site: string }>;
+  catalog_parts: PickerOption[];
+  statuses: string[];
+};
+
+export function getPartInStoreCreateContext(token: string) {
+  return request<PartInStoreCreateContext>('/parts/in-store/create-context', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createPartInStore(token: string, body: Record<string, unknown>) {
+  return request<{ id: string }>('/parts/in-store', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updatePartInStore(token: string, id: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(`/parts/in-store/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export type PartConversionCreateContext = {
+  catalog_parts: PickerOption[];
+  units: PickerOption[];
+};
+
+export function getPartConversionCreateContext(token: string) {
+  return request<PartConversionCreateContext>('/parts/conversions/create-context', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createPartConversion(token: string, body: Record<string, unknown>) {
+  return request<{ id: string }>('/parts/conversions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updatePartConversion(token: string, id: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(`/parts/conversions/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export type PriceCatalogCreateContext = {
+  catalog_parts: PickerOption[];
+  currencies: Array<{ code: string; label: string }>;
+  price_modes: Array<{ value: string; label: string }>;
+  update_price_modes: Array<{ value: string; label: string }>;
+};
+
+export function getPriceCatalogCreateContext(token: string) {
+  return request<PriceCatalogCreateContext>('/parts/price-catalog/create-context', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createPriceCatalogRow(token: string, body: Record<string, unknown>) {
+  return request<{ id: string }>('/parts/price-catalog', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updatePriceCatalogRow(token: string, id: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(`/parts/price-catalog/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function activatePriceCatalogRow(token: string, id: string) {
+  return request<{ id: string }>(`/parts/price-catalog/${encodeURIComponent(id)}/activate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export type ExpirationReceiptOption = {
+  id: string;
+  receipt_no: string;
+  store_name: string;
+  status_label: string;
+};
+
+export function getExpirationReceiptsContext(token: string) {
+  return request<{ items: ExpirationReceiptOption[] }>('/parts/expirations/receipts-context', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export type ExpirationLineOption = {
+  id: string;
+  part_in_store_id: string;
+  part_code: string;
+  part_description: string;
+  unit: string;
+  received_qty: number;
+  allocated_qty: number;
+  remaining_qty: number;
+};
+
+export function getExpirationReceiptLinesContext(token: string, receiptId: string) {
+  return request<{ receipt: { id: string; receipt_no: string }; lines: ExpirationLineOption[] }>(
+    `/parts/expirations/receipts/${encodeURIComponent(receiptId)}/lines-context`,
+    { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
+  );
+}
+
+export function createPartExpiration(token: string, body: Record<string, unknown>) {
+  return request<{ id: string }>('/parts/expirations', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updatePartExpiration(token: string, id: string, body: Record<string, unknown>) {
+  return request<{ id: string }>(`/parts/expirations/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function deletePartExpiration(token: string, id: string) {
+  return request<null>(`/parts/expirations/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
 }
@@ -2223,6 +2722,33 @@ export function getStockReportLines(token: string, storeId: string, page = 1, pe
 export function getAttendance(token: string, days = 45) {
   return request<{ items: AttendanceRow[]; from_date: string }>(`/attendance?days=${days}`, {
     method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export type AttendanceToday = {
+  date: string;
+  check_in: string | null;
+  check_out: string | null;
+  hours_worked: number | null;
+  status: string;
+  source: string;
+  can_check_in: boolean;
+  can_check_out: boolean;
+  completed: boolean;
+  next_action: 'check_in' | 'check_out' | 'none';
+};
+
+export function getAttendanceToday(token: string) {
+  return request<AttendanceToday>('/attendance/today', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function postAttendancePunch(token: string) {
+  return request<AttendanceToday>('/attendance/punch', {
+    method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   });
 }

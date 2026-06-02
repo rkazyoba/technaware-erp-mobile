@@ -21,6 +21,8 @@ import { StoreMovementLinesScreen } from '../screens/StoreMovementLinesScreen';
 import { DeliveryNoteHeaderScreen } from '../screens/DeliveryNoteHeaderScreen';
 import { DeliveryNoteLinesScreen } from '../screens/DeliveryNoteLinesScreen';
 import { LeaveRequestFormScreen } from '../screens/LeaveRequestFormScreen';
+import { RequisitionHeaderScreen } from '../screens/RequisitionHeaderScreen';
+import { RequisitionWorkspaceScreen } from '../screens/RequisitionWorkspaceScreen';
 import { PettyCashRequestFormScreen } from '../screens/PettyCashRequestFormScreen';
 import { PaymentVoucherFormScreen } from '../screens/PaymentVoucherFormScreen';
 import { CustomerPaymentRecordScreen } from '../screens/CustomerPaymentRecordScreen';
@@ -36,6 +38,9 @@ import { SupplierReturnWorkspaceScreen } from '../screens/SupplierReturnWorkspac
 import { PickTicketHeaderScreen } from '../screens/PickTicketHeaderScreen';
 import { PickTicketWorkspaceScreen } from '../screens/PickTicketWorkspaceScreen';
 import { MasterCatalogEditScreen } from '../screens/MasterCatalogEditScreen';
+import { PartCatalogEditScreen } from '../screens/PartCatalogEditScreen';
+import { PartExpirationFormScreen } from '../screens/PartExpirationFormScreen';
+import { PartsMgmtEditScreen } from '../screens/PartsMgmtEditScreen';
 import type { MobilePortalBootstrap, RefreshProfileOptions, SignedInUser } from '../types/app';
 
 export type { ModulesStackParamList } from './moduleStackTypes';
@@ -57,6 +62,8 @@ function ModulesNavigator() {
       <ModulesStack.Screen name="DeliveryNoteHeader" component={DeliveryNoteHeaderScreen} />
       <ModulesStack.Screen name="DeliveryNoteLines" component={DeliveryNoteLinesScreen} />
       <ModulesStack.Screen name="LeaveRequestForm" component={LeaveRequestFormScreen} />
+      <ModulesStack.Screen name="RequisitionHeader" component={RequisitionHeaderScreen} />
+      <ModulesStack.Screen name="RequisitionWorkspace" component={RequisitionWorkspaceScreen} />
       <ModulesStack.Screen name="PettyCashRequestForm" component={PettyCashRequestFormScreen} />
       <ModulesStack.Screen name="PaymentVoucherForm" component={PaymentVoucherFormScreen} />
       <ModulesStack.Screen name="CustomerPaymentRecord" component={CustomerPaymentRecordScreen} />
@@ -72,6 +79,9 @@ function ModulesNavigator() {
       <ModulesStack.Screen name="PickTicketHeader" component={PickTicketHeaderScreen} />
       <ModulesStack.Screen name="PickTicketWorkspace" component={PickTicketWorkspaceScreen} />
       <ModulesStack.Screen name="MasterCatalogEdit" component={MasterCatalogEditScreen} />
+      <ModulesStack.Screen name="PartCatalogEdit" component={PartCatalogEditScreen} />
+      <ModulesStack.Screen name="PartsMgmtEdit" component={PartsMgmtEditScreen} />
+      <ModulesStack.Screen name="PartExpirationForm" component={PartExpirationFormScreen} />
       <ModulesStack.Screen name="Approvals" component={ApprovalsScreen} />
     </ModulesStack.Navigator>
   );

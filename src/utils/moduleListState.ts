@@ -45,6 +45,9 @@ export function moduleListHasItems(moduleRoute: string, sp: StaffPortalModel): b
       return sp.leaveBalanceItems.length > 0;
     case 'Leave Requests':
       return sp.leaveRequests.length > 0;
+    case 'Team leave approvals':
+    case 'HR leave approvals':
+      return sp.leaveApprovalQueueItems.length > 0;
     case 'Notifications':
       return sp.notifications.length > 0;
     case 'Support':
@@ -69,6 +72,16 @@ export function moduleListHasItems(moduleRoute: string, sp: StaffPortalModel): b
       return sp.mobileOperatorItems.length > 0;
     case 'Part catalog':
       return sp.partItems.length > 0;
+    case 'Parts in store':
+      return sp.partInStoreItems.length > 0;
+    case 'Part expiration':
+      return sp.partExpirationItems.length > 0;
+    case 'Part conversions':
+      return sp.partConversionItems.length > 0;
+    case 'Price catalog':
+      return sp.priceCatalogItems.length > 0;
+    case 'Products':
+      return sp.productItems.length > 0;
     case 'Stock by store':
       return sp.stockStores.length > 0 || sp.stockLines.length > 0;
     case 'Attendance':

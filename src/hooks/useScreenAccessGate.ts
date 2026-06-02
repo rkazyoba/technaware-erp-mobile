@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { MobilePortalBootstrap } from '../types/app';
-import { canCrud, type CrudAction, type CrudResource } from '../utils/crudPermissions';
+import { canCrud, canCrudOrLegacy, PARTS_MGMT_LEGACY, type CrudResource } from '../utils/crudPermissions';
 import { portalModuleAccessGate, type PortalModuleAccessGate } from '../utils/portalModuleAccess';
 
 export type ScreenAccessGate = {
@@ -33,9 +33,16 @@ export function useScreenAccessGate({
   return useMemo(() => {
     const moduleGate = portalModuleAccessGate(portal, moduleRoute);
     const canView = moduleGate === 'allowed';
-    const canCreate = resource ? canCrud(portal, resource, 'create') : canView;
-    const canUpdate = resource ? canCrud(portal, resource, 'update') : canView;
-    const canDelete = resource ? canCrud(portal, resource, 'delete') : false;
+    const legacy = resource && PARTS_MGMT_LEGACY[resource] ? PARTS_MGMT_LEGACY[resource] : [];
+    const crud = (action: 'create' | 'update' | 'delete') =>
+      resource
+        ? legacy.length > 0
+          ? canCrudOrLegacy(portal, resource, action, legacy)
+          : canCrud(portal, resource, action)
+        : canView;
+    const canCreate = crud('create');
+    const canUpdate = crud('update');
+    const canDelete = resource ? crud('delete') : false;
 
     let deniedMessage = 'You do not have access to this area.';
     if (moduleGate === 'denied') {

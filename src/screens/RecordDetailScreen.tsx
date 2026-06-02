@@ -48,6 +48,13 @@ import { hrCatalogRouteForDetailKind, isHrCatalogRoute } from '../hooks/hrCatalo
 import { useRecordAccountingDetail } from '../hooks/useRecordAccountingDetail';
 import { useRecordFinanceDetail } from '../hooks/useRecordFinanceDetail';
 import type { ModulesStackParamList, RecordDetailParams } from '../navigation/moduleStackTypes';
+import { canCrud, canCrudOrLegacy, PARTS_MGMT_LEGACY } from '../utils/crudPermissions';
+import {
+  PART_CONVERSIONS_ROUTE,
+  PART_EXPIRATION_ROUTE,
+  PARTS_IN_STORE_ROUTE,
+  PRICE_CATALOG_ROUTE,
+} from '../utils/partsMgmtPortal';
 import { styles } from '../styles/appStyles';
 import {
   approvalWebDocumentAction,
@@ -196,6 +203,16 @@ function hasLoadedBody(kind: RecordDetailParams['detailKind'], sp: ReturnType<ty
       return Boolean(sp.leaveDetail);
     case 'part':
       return Boolean(sp.partDetail);
+    case 'part_in_store':
+      return Boolean(sp.partInStoreDetail);
+    case 'part_expiration':
+      return Boolean(sp.partExpirationDetail);
+    case 'part_conversion':
+      return Boolean(sp.partConversionDetail);
+    case 'price_catalog':
+      return Boolean(sp.priceCatalogDetail);
+    case 'product':
+      return Boolean(sp.productDetail);
     case 'support':
       return Boolean(sp.supportDetail);
     case 'notification':
@@ -319,6 +336,11 @@ export function RecordDetailScreen() {
     loadLeaveRequestDetail,
     loadPayslipDetail,
     fetchPartDetail,
+    fetchPartInStoreDetail,
+    fetchPartExpirationDetail,
+    fetchPartConversionDetail,
+    fetchPriceCatalogDetail,
+    fetchProductDetail,
     loadSupportDetail,
     loadApprovalDetail,
     loadCrmCustomerDetail,
@@ -331,8 +353,17 @@ export function RecordDetailScreen() {
     loadBankBranchDetail,
     loadMobileOperatorDetail,
     loadApprovals,
+    setPartInStoreDetail,
+    setPartExpirationDetail,
+    setPartConversionDetail,
+    setPriceCatalogDetail,
     logisticsDetailFetchSeqRef,
     partDetailFetchSeqRef,
+    partInStoreDetailFetchSeqRef,
+    partExpirationDetailFetchSeqRef,
+    partConversionDetailFetchSeqRef,
+    priceCatalogDetailFetchSeqRef,
+    productDetailFetchSeqRef,
     logisticsDetail,
     requisitionDetail,
     purchaseOrderDetail,
@@ -344,6 +375,11 @@ export function RecordDetailScreen() {
     payslipDetail,
     approvalDetail,
     partDetail,
+    partInStoreDetail,
+    partExpirationDetail,
+    partConversionDetail,
+    priceCatalogDetail,
+    productDetail,
     supportDetail,
     crmCustomerDetail,
     crmContractDetail,
@@ -366,6 +402,7 @@ export function RecordDetailScreen() {
     setLeaveDetail,
     setPayslipDetail,
     setPartDetail,
+    setProductDetail,
     setSupportDetail,
     setApprovalDetail,
     setCrmCustomerDetail,
@@ -451,6 +488,10 @@ export function RecordDetailScreen() {
       return () => {
         logisticsDetailFetchSeqRef.current += 1;
         partDetailFetchSeqRef.current += 1;
+        partInStoreDetailFetchSeqRef.current += 1;
+        partExpirationDetailFetchSeqRef.current += 1;
+        partConversionDetailFetchSeqRef.current += 1;
+        priceCatalogDetailFetchSeqRef.current += 1;
         if (isHrCatalogRoute(moduleRoute)) {
           clearHrCatalogDetail(moduleRoute);
         }
@@ -464,6 +505,11 @@ export function RecordDetailScreen() {
         setLeaveDetail(null);
         setPayslipDetail(null);
         setPartDetail(null);
+        setPartInStoreDetail(null);
+        setPartExpirationDetail(null);
+        setPartConversionDetail(null);
+        setPriceCatalogDetail(null);
+        setProductDetail(null);
         setSupportDetail(null);
         setApprovalDetail(null);
         setCrmCustomerDetail(null);
@@ -481,6 +527,11 @@ export function RecordDetailScreen() {
       moduleRoute,
       logisticsDetailFetchSeqRef,
       partDetailFetchSeqRef,
+      partInStoreDetailFetchSeqRef,
+      partExpirationDetailFetchSeqRef,
+      partConversionDetailFetchSeqRef,
+      priceCatalogDetailFetchSeqRef,
+      productDetailFetchSeqRef,
       setPortalActiveTab,
       setPortalSelectedModule,
       clearHrCatalogDetail,
@@ -493,6 +544,11 @@ export function RecordDetailScreen() {
       setLeaveBalanceDetail,
       setLeaveDetail,
       setPartDetail,
+      setPartInStoreDetail,
+      setPartExpirationDetail,
+      setPartConversionDetail,
+      setPriceCatalogDetail,
+      setProductDetail,
       setSupportDetail,
       setApprovalDetail,
       setCrmCustomerDetail,
@@ -527,6 +583,7 @@ export function RecordDetailScreen() {
     setLeaveDetail(null);
     setPayslipDetail(null);
     setPartDetail(null);
+    setProductDetail(null);
     setSupportDetail(null);
     if (detailKind !== 'approval') {
       setApprovalDetail(null);
@@ -610,6 +667,26 @@ export function RecordDetailScreen() {
       void fetchPartDetail(recordId);
       return;
     }
+    if (detailKind === 'part_in_store') {
+      void fetchPartInStoreDetail(recordId);
+      return;
+    }
+    if (detailKind === 'part_expiration') {
+      void fetchPartExpirationDetail(recordId);
+      return;
+    }
+    if (detailKind === 'part_conversion') {
+      void fetchPartConversionDetail(recordId);
+      return;
+    }
+    if (detailKind === 'price_catalog') {
+      void fetchPriceCatalogDetail(recordId);
+      return;
+    }
+    if (detailKind === 'product') {
+      void fetchProductDetail(recordId);
+      return;
+    }
     if (detailKind === 'support') {
       void loadSupportDetail(recordId);
       return;
@@ -682,6 +759,11 @@ export function RecordDetailScreen() {
     loadLeaveRequestDetail,
     loadPayslipDetail,
     fetchPartDetail,
+    fetchPartInStoreDetail,
+    fetchPartExpirationDetail,
+    fetchPartConversionDetail,
+    fetchPriceCatalogDetail,
+    fetchProductDetail,
     loadSupportDetail,
     loadCrmCustomerDetail,
     loadCrmContractDetail,
@@ -702,6 +784,7 @@ export function RecordDetailScreen() {
     setLeaveDetail,
     setPayslipDetail,
     setPartDetail,
+    setProductDetail,
     setSupportDetail,
     setApprovalDetail,
     setCrmCustomerDetail,
@@ -862,6 +945,13 @@ export function RecordDetailScreen() {
     if (detailKind === 'approval' && approvalDetailEffective) return approvalDetailEffective.ref;
     if (detailKind === 'leave' && leaveDetail) return leaveDetail.id;
     if (detailKind === 'part' && partDetail) return partDetail.code;
+    if (detailKind === 'part_in_store' && partInStoreDetail) return partInStoreDetail.code;
+    if (detailKind === 'part_expiration' && partExpirationDetail) {
+      return partExpirationDetail.batch_number ?? partExpirationDetail.receipt_no ?? recordId;
+    }
+    if (detailKind === 'part_conversion' && partConversionDetail) return partConversionDetail.part_code;
+    if (detailKind === 'price_catalog' && priceCatalogDetail) return priceCatalogDetail.part_code;
+    if (detailKind === 'product' && productDetail) return productDetail.code;
     if (detailKind === 'support' && supportDetail) return supportDetail.ticket_number;
     if (detailKind === 'notification' && notificationPreview) return notificationPreview.title;
     if (detailKind === 'stock_line' && stockLine) return stockLine.code;
@@ -900,6 +990,11 @@ export function RecordDetailScreen() {
     else if (detailKind === 'leave') void loadLeaveRequestDetail(recordId);
     else if (detailKind === 'payslip') void loadPayslipDetail(recordId);
     else if (detailKind === 'part') void fetchPartDetail(recordId);
+    else if (detailKind === 'part_in_store') void fetchPartInStoreDetail(recordId);
+    else if (detailKind === 'part_expiration') void fetchPartExpirationDetail(recordId);
+    else if (detailKind === 'part_conversion') void fetchPartConversionDetail(recordId);
+    else if (detailKind === 'price_catalog') void fetchPriceCatalogDetail(recordId);
+    else if (detailKind === 'product') void fetchProductDetail(recordId);
     else if (detailKind === 'support') void loadSupportDetail(recordId);
     else if (detailKind === 'crm_customer') void loadCrmCustomerDetail(recordId);
     else if (detailKind === 'crm_contract') void loadCrmContractDetail(recordId);
@@ -1221,6 +1316,11 @@ export function RecordDetailScreen() {
             detailKind === 'approval' ||
             detailKind === 'leave' ||
             detailKind === 'part' ||
+            detailKind === 'part_in_store' ||
+            detailKind === 'part_expiration' ||
+            detailKind === 'part_conversion' ||
+            detailKind === 'price_catalog' ||
+            detailKind === 'product' ||
             detailKind === 'support' ||
             detailKind === 'crm_customer' ||
             detailKind === 'crm_contract' ||
@@ -1372,6 +1472,20 @@ export function RecordDetailScreen() {
                 <Text style={styles.meta}>Status: {requisitionDetail.status_label}</Text>
                 <Text style={styles.meta}>Requested: {requisitionDetail.requested_date ?? '—'}</Text>
                 <Text style={styles.meta}>Comment: {requisitionDetail.approval_comment ?? '—'}</Text>
+                {requisitionDetail.editable &&
+                canCrudOrLegacy(portal, 'requisitions', 'update', ['erp.user.requisitions']) ? (
+                  <Pressable
+                    style={[styles.detailsButton, { marginTop: 14 }]}
+                    onPress={() =>
+                      navigation.navigate('RequisitionWorkspace', {
+                        requisitionId: recordId,
+                        initialTab: requisitionDetail.lines.length > 0 ? 'lines' : 'overview',
+                      })
+                    }
+                  >
+                    <Text style={styles.detailsButtonText}>Edit on mobile</Text>
+                  </Pressable>
+                ) : null}
               </>
             ) : null}
             {(!activeDetailTabs || detailTab === TAB_LINES) ? (
@@ -1912,6 +2026,18 @@ export function RecordDetailScreen() {
           </View>
         ) : null}
 
+        {detailKind === 'product' && productDetail ? (
+          <View style={{ marginTop: 20 }}>
+            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Product</Text>
+            <Text style={[styles.meta, { marginTop: 8 }]}>Code: {productDetail.code}</Text>
+            <Text style={styles.meta}>{productDetail.name}</Text>
+            <Text style={styles.meta}>Status: {productDetail.status}</Text>
+            <Text style={styles.meta}>Type: {productDetail.product_type || '—'}</Text>
+            <Text style={styles.meta}>Category: {productDetail.category || productDetail.category_id || '—'}</Text>
+            <Text style={styles.meta}>Unit: {productDetail.unit || productDetail.unit_id || '—'}</Text>
+          </View>
+        ) : null}
+
         {detailKind === 'part' && partDetail ? (
           <View style={{ marginTop: 20 }}>
             {activeDetailTabs ? <DetailTabBar tabs={activeDetailTabs} active={detailTab} onChange={setDetailTab} /> : null}
@@ -1943,6 +2069,161 @@ export function RecordDetailScreen() {
                   ))
                 )}
               </>
+            ) : null}
+            {canCrud(portal, 'parts', 'update') ? (
+              <Pressable
+                style={[styles.detailsButton, { marginTop: 14 }]}
+                onPress={() => navigation.navigate('PartCatalogEdit', { moduleRoute: 'Part catalog', recordId })}
+              >
+                <Text style={styles.detailsButtonText}>Edit catalog part</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {detailKind === 'part_in_store' && partInStoreDetail ? (
+          <View style={{ marginTop: 20 }}>
+            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Part in store</Text>
+            <Text style={[styles.meta, { marginTop: 8 }]}>Code: {partInStoreDetail.code}</Text>
+            <Text style={styles.meta}>{partInStoreDetail.description}</Text>
+            <Text style={styles.meta}>Store: {partInStoreDetail.store_name}</Text>
+            <Text style={styles.meta}>Qty: {partInStoreDetail.quantity} {partInStoreDetail.unit}</Text>
+            <Text style={styles.meta}>Min / max: {partInStoreDetail.min_qty} / {partInStoreDetail.max_qty}</Text>
+            <Text style={styles.meta}>Status: {partInStoreDetail.status}</Text>
+            <Text style={styles.meta}>Tracking: {partInStoreDetail.tracking_method}</Text>
+            {partInStoreDetail.catalog_part_id ? (
+              <Pressable
+                style={[styles.detailsButton, { marginTop: 12 }]}
+                onPress={() =>
+                  navigation.navigate('RecordDetail', {
+                    moduleRoute: 'Part catalog',
+                    detailKind: 'part',
+                    recordId: partInStoreDetail.catalog_part_id!,
+                    titleHint: partInStoreDetail.catalog_part_code,
+                  })
+                }
+              >
+                <Text style={styles.detailsButtonText}>Open catalog part {partInStoreDetail.catalog_part_code}</Text>
+              </Pressable>
+            ) : null}
+            {canCrudOrLegacy(portal, 'parts_in_store', 'update', PARTS_MGMT_LEGACY.parts_in_store) ? (
+              <Pressable
+                style={[styles.detailsButton, { marginTop: 14 }]}
+                onPress={() =>
+                  navigation.navigate('PartsMgmtEdit', {
+                    kind: 'in_store',
+                    moduleRoute: PARTS_IN_STORE_ROUTE,
+                    recordId,
+                  })
+                }
+              >
+                <Text style={styles.detailsButtonText}>Edit part in store</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {detailKind === 'part_expiration' && partExpirationDetail ? (
+          <View style={{ marginTop: 20 }}>
+            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Expiration lot</Text>
+            <Text style={[styles.meta, { marginTop: 8 }]}>GRN: {partExpirationDetail.receipt_no}</Text>
+            <Text style={styles.meta}>Part: {partExpirationDetail.part_code} — {partExpirationDetail.part_description}</Text>
+            <Text style={styles.meta}>Batch: {partExpirationDetail.batch_number ?? '—'}</Text>
+            <Text style={styles.meta}>Manufacture: {partExpirationDetail.manufacture_date ?? '—'}</Text>
+            <Text style={styles.meta}>Expires: {partExpirationDetail.expired_date ?? '—'}</Text>
+            <Text style={styles.meta}>Quantity: {partExpirationDetail.quantity}</Text>
+            <Text style={styles.meta}>Status: {partExpirationDetail.status}</Text>
+            {canCrudOrLegacy(portal, 'part_expiration', 'update', PARTS_MGMT_LEGACY.part_expiration) ? (
+              <Pressable
+                style={[styles.detailsButton, { marginTop: 14 }]}
+                onPress={() =>
+                  navigation.navigate('PartExpirationForm', {
+                    moduleRoute: PART_EXPIRATION_ROUTE,
+                    recordId,
+                  })
+                }
+              >
+                <Text style={styles.detailsButtonText}>Edit expiration lot</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {detailKind === 'part_conversion' && partConversionDetail ? (
+          <View style={{ marginTop: 20 }}>
+            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Part conversion</Text>
+            <Text style={[styles.meta, { marginTop: 8 }]}>
+              {partConversionDetail.part_code} — {partConversionDetail.part_description}
+            </Text>
+            <Text style={styles.meta}>
+              1 {partConversionDetail.order_unit} = {partConversionDetail.exchange_rate} (catalog unit)
+            </Text>
+            {partConversionDetail.part_status ? (
+              <Text style={styles.meta}>Part status: {partConversionDetail.part_status}</Text>
+            ) : null}
+            {canCrudOrLegacy(portal, 'part_conversions', 'update', PARTS_MGMT_LEGACY.part_conversions) ? (
+              <Pressable
+                style={[styles.detailsButton, { marginTop: 14 }]}
+                onPress={() =>
+                  navigation.navigate('PartsMgmtEdit', {
+                    kind: 'conversion',
+                    moduleRoute: PART_CONVERSIONS_ROUTE,
+                    recordId,
+                  })
+                }
+              >
+                <Text style={styles.detailsButtonText}>Edit conversion</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {detailKind === 'price_catalog' && priceCatalogDetail ? (
+          <View style={{ marginTop: 20 }}>
+            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Price catalog</Text>
+            <Text style={[styles.meta, { marginTop: 8 }]}>
+              {priceCatalogDetail.part_code} — {priceCatalogDetail.part_description}
+            </Text>
+            <Text style={styles.meta}>
+              {priceCatalogDetail.currency} {priceCatalogDetail.price} · {priceCatalogDetail.status}
+            </Text>
+            <Text style={styles.meta}>
+              Valid {priceCatalogDetail.start_date ?? '—'} → {priceCatalogDetail.end_date ?? '—'}
+            </Text>
+            {priceCatalogDetail.is_consumption_active ? (
+              <Text style={[styles.meta, { color: colors.statusApprovedText }]}>Used for consumption today</Text>
+            ) : null}
+            {priceCatalogDetail.source ? <Text style={styles.meta}>Source: {priceCatalogDetail.source}</Text> : null}
+            {priceCatalogDetail.notes ? <Text style={styles.meta}>Notes: {priceCatalogDetail.notes}</Text> : null}
+            {priceCatalogDetail.sibling_rows?.length ? (
+              <>
+                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary, marginTop: 16 }}>Other rows for this part</Text>
+                {priceCatalogDetail.sibling_rows.map((row) => (
+                  <View key={row.id} style={styles.approvalLineRow}>
+                    <Text style={styles.approvalType}>
+                      {row.currency} {row.price} · {row.status}
+                    </Text>
+                    <Text style={styles.approvalOwner}>
+                      {row.start_date ?? '—'} → {row.end_date ?? '—'}
+                      {row.is_consumption_active ? ' · active today' : ''}
+                    </Text>
+                  </View>
+                ))}
+              </>
+            ) : null}
+            {canCrudOrLegacy(portal, 'price_catalog', 'update', PARTS_MGMT_LEGACY.price_catalog) ? (
+              <Pressable
+                style={[styles.detailsButton, { marginTop: 14 }]}
+                onPress={() =>
+                  navigation.navigate('PartsMgmtEdit', {
+                    kind: 'price_catalog',
+                    moduleRoute: PRICE_CATALOG_ROUTE,
+                    recordId,
+                  })
+                }
+              >
+                <Text style={styles.detailsButtonText}>Edit price row</Text>
+              </Pressable>
             ) : null}
           </View>
         ) : null}

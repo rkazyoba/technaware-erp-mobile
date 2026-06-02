@@ -59,9 +59,11 @@ import {
   getEmployees,
   getLeaveBalanceDetail,
   getLeaveBalances,
+  getHrLeaveApprovalQueue,
   getLeaveRequest,
   getLeaveRequests,
   getLeaveTypes,
+  getManagerLeaveApprovalQueue,
   getPaymentDetail,
   getPaymentVoucherDetail,
   getPaymentVouchers,
@@ -74,6 +76,16 @@ import {
   getMobileOperators,
   getPartCatalog,
   getPartCatalogDetail,
+  getPartConversionDetail,
+  getPartConversions,
+  getPartExpirationDetail,
+  getPartExpirations,
+  getPartInStoreDetail,
+  getPartsInStore,
+  getPriceCatalog,
+  getPriceCatalogDetail,
+  getProductDetail,
+  getProducts,
   getPayslipDetail,
   getPayslips,
   getProformaInvoiceDetail,
@@ -125,6 +137,7 @@ import {
   type CrmCustomerListItem,
   type CrmQuotationDetail,
   type CrmQuotationListItem,
+  type LeaveApprovalQueueItem,
   type LeaveRequestDetail,
   type LeaveRequestItem,
   type LeaveTypeItem,
@@ -144,6 +157,16 @@ import {
   type UnitListItem,
   type PartCatalogDetail,
   type PartCatalogItem,
+  type PartConversionDetail,
+  type PartConversionListItem,
+  type PartExpirationDetail,
+  type PartExpirationListItem,
+  type PartInStoreDetail,
+  type PartInStoreListItem,
+  type PriceCatalogDetail,
+  type PriceCatalogListItem,
+  type ProductDetail,
+  type ProductListItem,
   type CustomerInvoiceDetail,
   type CustomerInvoiceListItem,
   type EmployeeDetail,
@@ -187,6 +210,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppTab, MobilePortalBootstrap, RefreshProfileOptions, SignedInUser } from '../types/app';
 import { webPathForPortalSurface } from '../utils/portalWebSurfaces';
+import {
+  isPartsMgmtModuleRoute,
+  PART_CONVERSIONS_ROUTE,
+  PART_EXPIRATION_ROUTE,
+  PARTS_IN_STORE_ROUTE,
+  PRICE_CATALOG_ROUTE,
+  type PartsMgmtModuleRoute,
+} from '../utils/partsMgmtPortal';
 import { isAccountingApiListModule, type AccountingApiListModule } from '../utils/accountingPortal';
 import { isFinanceReportMobileModule } from '../utils/financeReportPortal';
 import { canCrud, canCrudOrLegacy, LOGISTICS_LEGACY } from '../utils/crudPermissions';
@@ -469,6 +500,11 @@ export function useStaffPortalModel({
   const [leavePage, setLeavePage] = useState(1);
   const [leaveHasMore, setLeaveHasMore] = useState(false);
   const [leaveUpdatedAt, setLeaveUpdatedAt] = useState<string | null>(null);
+  const [leaveApprovalQueueItems, setLeaveApprovalQueueItems] = useState<LeaveApprovalQueueItem[]>([]);
+  const [leaveApprovalQueuePage, setLeaveApprovalQueuePage] = useState(1);
+  const [leaveApprovalQueueHasMore, setLeaveApprovalQueueHasMore] = useState(false);
+  const [leaveApprovalQueueUpdatedAt, setLeaveApprovalQueueUpdatedAt] = useState<string | null>(null);
+  const leaveApprovalQueueRouteRef = useRef<string>('');
   const [leaveTypeId, setLeaveTypeId] = useState<string>('');
   const [leaveStart, setLeaveStart] = useState('');
   const [leaveEnd, setLeaveEnd] = useState('');
@@ -717,6 +753,55 @@ export function useStaffPortalModel({
   const [partsUpdatedAt, setPartsUpdatedAt] = useState<string | null>(null);
   const [partDetail, setPartDetail] = useState<PartCatalogDetail | null>(null);
 
+  const [partInStoreItems, setPartInStoreItems] = useState<PartInStoreListItem[]>([]);
+  const [partInStorePage, setPartInStorePage] = useState(1);
+  const [partInStoreHasMore, setPartInStoreHasMore] = useState(false);
+  const [partInStoreUpdatedAt, setPartInStoreUpdatedAt] = useState<string | null>(null);
+  const [partInStoreSearchInput, setPartInStoreSearchInput] = useState('');
+  const [partInStoreQueryCommitted, setPartInStoreQueryCommitted] = useState('');
+  const [partInStoreDetail, setPartInStoreDetail] = useState<PartInStoreDetail | null>(null);
+
+  const [partExpirationItems, setPartExpirationItems] = useState<PartExpirationListItem[]>([]);
+  const [partExpirationPage, setPartExpirationPage] = useState(1);
+  const [partExpirationHasMore, setPartExpirationHasMore] = useState(false);
+  const [partExpirationUpdatedAt, setPartExpirationUpdatedAt] = useState<string | null>(null);
+  const [partExpirationSearchInput, setPartExpirationSearchInput] = useState('');
+  const [partExpirationQueryCommitted, setPartExpirationQueryCommitted] = useState('');
+  const [partExpirationWithinDays, setPartExpirationWithinDays] = useState(0);
+  const [partExpirationDetail, setPartExpirationDetail] = useState<PartExpirationDetail | null>(null);
+
+  const [partConversionItems, setPartConversionItems] = useState<PartConversionListItem[]>([]);
+  const [partConversionPage, setPartConversionPage] = useState(1);
+  const [partConversionHasMore, setPartConversionHasMore] = useState(false);
+  const [partConversionUpdatedAt, setPartConversionUpdatedAt] = useState<string | null>(null);
+  const [partConversionSearchInput, setPartConversionSearchInput] = useState('');
+  const [partConversionQueryCommitted, setPartConversionQueryCommitted] = useState('');
+  const [partConversionDetail, setPartConversionDetail] = useState<PartConversionDetail | null>(null);
+
+  const [priceCatalogItems, setPriceCatalogItems] = useState<PriceCatalogListItem[]>([]);
+  const [priceCatalogPage, setPriceCatalogPage] = useState(1);
+  const [priceCatalogHasMore, setPriceCatalogHasMore] = useState(false);
+  const [priceCatalogUpdatedAt, setPriceCatalogUpdatedAt] = useState<string | null>(null);
+  const [priceCatalogSearchInput, setPriceCatalogSearchInput] = useState('');
+  const [priceCatalogQueryCommitted, setPriceCatalogQueryCommitted] = useState('');
+  const [priceCatalogActiveOnly, setPriceCatalogActiveOnly] = useState(false);
+  const [priceCatalogDetail, setPriceCatalogDetail] = useState<PriceCatalogDetail | null>(null);
+
+  const partsMgmtFetchSeqRef = useRef(0);
+  const partInStoreDetailFetchSeqRef = useRef(0);
+  const partExpirationDetailFetchSeqRef = useRef(0);
+  const partConversionDetailFetchSeqRef = useRef(0);
+  const priceCatalogDetailFetchSeqRef = useRef(0);
+
+  const [productItems, setProductItems] = useState<ProductListItem[]>([]);
+  const [productPage, setProductPage] = useState(1);
+  const [productHasMore, setProductHasMore] = useState(false);
+  const [productListTotal, setProductListTotal] = useState(0);
+  const [productSearchInput, setProductSearchInput] = useState('');
+  const [productQueryCommitted, setProductQueryCommitted] = useState('');
+  const [productsUpdatedAt, setProductsUpdatedAt] = useState<string | null>(null);
+  const [productDetail, setProductDetail] = useState<ProductDetail | null>(null);
+
   const [stockStores, setStockStores] = useState<StockReportStoreItem[]>([]);
   const [stockStoreId, setStockStoreId] = useState<string | null>(null);
   const [stockLines, setStockLines] = useState<StockReportLine[]>([]);
@@ -729,6 +814,8 @@ export function useStaffPortalModel({
 
   const partCatalogFetchSeqRef = useRef(0);
   const partDetailFetchSeqRef = useRef(0);
+  const productCatalogFetchSeqRef = useRef(0);
+  const productDetailFetchSeqRef = useRef(0);
   const stockStoresFetchSeqRef = useRef(0);
   const stockLinesFetchSeqRef = useRef(0);
   const logisticsListFetchSeqRef = useRef(0);
@@ -848,6 +935,35 @@ export function useStaffPortalModel({
       setNotificationsUpdatedAt(formatNow());
     } catch (error) {
       setModuleError(error instanceof Error ? error.message : 'Failed to load notifications.');
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadLeaveApprovalQueue = async (route: string, page = 1) => {
+    const isManager = route === 'Team leave approvals';
+    const isHr = route === 'HR leave approvals';
+    if (!isManager && !isHr) {
+      return;
+    }
+    if (page === 1 && leaveApprovalQueueRouteRef.current !== route) {
+      leaveApprovalQueueRouteRef.current = route;
+      setLeaveApprovalQueueItems([]);
+    }
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const fetcher = isManager ? getManagerLeaveApprovalQueue : getHrLeaveApprovalQueue;
+      const res = await fetcher(token, page, 15);
+      setLeaveApprovalQueueItems((current) =>
+        page === 1 || leaveApprovalQueueRouteRef.current !== route ? res.data.items : [...current, ...res.data.items],
+      );
+      leaveApprovalQueueRouteRef.current = route;
+      setLeaveApprovalQueuePage(res.data.pagination.current_page);
+      setLeaveApprovalQueueHasMore(res.data.pagination.has_more);
+      setLeaveApprovalQueueUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(error instanceof Error ? error.message : 'Failed to load leave approvals.');
     } finally {
       setModuleLoading(false);
     }
@@ -2132,6 +2248,220 @@ export function useStaffPortalModel({
     }
   }, [token]);
 
+  const fetchPartsMgmtList = async (
+    route: PartsMgmtModuleRoute,
+    page: number,
+    q: string,
+    opts?: { expiringWithinDays?: number; activeOnly?: boolean },
+  ) => {
+    const seq = ++partsMgmtFetchSeqRef.current;
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      if (route === PARTS_IN_STORE_ROUTE) {
+        const res = await getPartsInStore(token, page, 15, q);
+        if (seq !== partsMgmtFetchSeqRef.current) {
+          return;
+        }
+        setPartInStoreItems((c) => (page === 1 ? res.data.items : [...c, ...res.data.items]));
+        setPartInStorePage(res.data.pagination.current_page);
+        setPartInStoreHasMore(res.data.pagination.has_more);
+        setPartInStoreUpdatedAt(formatNow());
+        if (page === 1) {
+          setPartInStoreQueryCommitted(q);
+        }
+      } else if (route === PART_EXPIRATION_ROUTE) {
+        const days = opts?.expiringWithinDays ?? partExpirationWithinDays;
+        const res = await getPartExpirations(token, page, 15, q, days);
+        if (seq !== partsMgmtFetchSeqRef.current) {
+          return;
+        }
+        setPartExpirationItems((c) => (page === 1 ? res.data.items : [...c, ...res.data.items]));
+        setPartExpirationPage(res.data.pagination.current_page);
+        setPartExpirationHasMore(res.data.pagination.has_more);
+        setPartExpirationUpdatedAt(formatNow());
+        if (page === 1) {
+          setPartExpirationQueryCommitted(q);
+        }
+      } else if (route === PART_CONVERSIONS_ROUTE) {
+        const res = await getPartConversions(token, page, 15, q);
+        if (seq !== partsMgmtFetchSeqRef.current) {
+          return;
+        }
+        setPartConversionItems((c) => (page === 1 ? res.data.items : [...c, ...res.data.items]));
+        setPartConversionPage(res.data.pagination.current_page);
+        setPartConversionHasMore(res.data.pagination.has_more);
+        setPartConversionUpdatedAt(formatNow());
+        if (page === 1) {
+          setPartConversionQueryCommitted(q);
+        }
+      } else {
+        const activeOnly = opts?.activeOnly ?? priceCatalogActiveOnly;
+        const res = await getPriceCatalog(token, page, 15, q, activeOnly);
+        if (seq !== partsMgmtFetchSeqRef.current) {
+          return;
+        }
+        setPriceCatalogItems((c) => (page === 1 ? res.data.items : [...c, ...res.data.items]));
+        setPriceCatalogPage(res.data.pagination.current_page);
+        setPriceCatalogHasMore(res.data.pagination.has_more);
+        setPriceCatalogUpdatedAt(formatNow());
+        if (page === 1) {
+          setPriceCatalogQueryCommitted(q);
+        }
+      }
+    } catch (error) {
+      if (seq !== partsMgmtFetchSeqRef.current) {
+        return;
+      }
+      setModuleError(error instanceof Error ? error.message : 'Failed to load list.');
+    } finally {
+      if (seq === partsMgmtFetchSeqRef.current) {
+        setModuleLoading(false);
+      }
+    }
+  };
+
+  const fetchPartInStoreDetail = useCallback(async (id: string) => {
+    const seq = ++partInStoreDetailFetchSeqRef.current;
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getPartInStoreDetail(token, id);
+      if (seq !== partInStoreDetailFetchSeqRef.current) {
+        return;
+      }
+      setPartInStoreDetail(res.data);
+    } catch (error) {
+      if (seq !== partInStoreDetailFetchSeqRef.current) {
+        return;
+      }
+      setModuleError(error instanceof Error ? error.message : 'Failed to load part in store.');
+    } finally {
+      if (seq === partInStoreDetailFetchSeqRef.current) {
+        setModuleLoading(false);
+      }
+    }
+  }, [token]);
+
+  const fetchPartExpirationDetail = useCallback(async (id: string) => {
+    const seq = ++partExpirationDetailFetchSeqRef.current;
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getPartExpirationDetail(token, id);
+      if (seq !== partExpirationDetailFetchSeqRef.current) {
+        return;
+      }
+      setPartExpirationDetail(res.data);
+    } catch (error) {
+      if (seq !== partExpirationDetailFetchSeqRef.current) {
+        return;
+      }
+      setModuleError(error instanceof Error ? error.message : 'Failed to load expiration lot.');
+    } finally {
+      if (seq === partExpirationDetailFetchSeqRef.current) {
+        setModuleLoading(false);
+      }
+    }
+  }, [token]);
+
+  const fetchPartConversionDetail = useCallback(async (id: string) => {
+    const seq = ++partConversionDetailFetchSeqRef.current;
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getPartConversionDetail(token, id);
+      if (seq !== partConversionDetailFetchSeqRef.current) {
+        return;
+      }
+      setPartConversionDetail(res.data);
+    } catch (error) {
+      if (seq !== partConversionDetailFetchSeqRef.current) {
+        return;
+      }
+      setModuleError(error instanceof Error ? error.message : 'Failed to load conversion.');
+    } finally {
+      if (seq === partConversionDetailFetchSeqRef.current) {
+        setModuleLoading(false);
+      }
+    }
+  }, [token]);
+
+  const fetchPriceCatalogDetail = useCallback(async (id: string) => {
+    const seq = ++priceCatalogDetailFetchSeqRef.current;
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getPriceCatalogDetail(token, id);
+      if (seq !== priceCatalogDetailFetchSeqRef.current) {
+        return;
+      }
+      setPriceCatalogDetail(res.data);
+    } catch (error) {
+      if (seq !== priceCatalogDetailFetchSeqRef.current) {
+        return;
+      }
+      setModuleError(error instanceof Error ? error.message : 'Failed to load price catalog row.');
+    } finally {
+      if (seq === priceCatalogDetailFetchSeqRef.current) {
+        setModuleLoading(false);
+      }
+    }
+  }, [token]);
+
+  const fetchProductsCatalog = async (page = 1, q?: string) => {
+    const seq = ++productCatalogFetchSeqRef.current;
+    setModuleLoading(true);
+    setModuleError(null);
+    const query = q !== undefined ? q : productQueryCommitted;
+    if (page === 1) {
+      setProductQueryCommitted(query);
+    }
+    try {
+      const res = await getProducts(token, page, 15, query);
+      if (seq !== productCatalogFetchSeqRef.current) {
+        return;
+      }
+      setProductItems((current) => (page === 1 ? res.data.items : [...current, ...res.data.items]));
+      setProductPage(res.data.pagination.current_page);
+      setProductHasMore(res.data.pagination.has_more);
+      setProductListTotal(res.data.pagination.total);
+      setProductsUpdatedAt(formatNow());
+    } catch (error) {
+      if (seq !== productCatalogFetchSeqRef.current) {
+        return;
+      }
+      setProductListTotal(0);
+      setModuleError(error instanceof Error ? error.message : 'Failed to load products.');
+    } finally {
+      if (seq === productCatalogFetchSeqRef.current) {
+        setModuleLoading(false);
+      }
+    }
+  };
+
+  const fetchProductDetail = useCallback(async (id: string) => {
+    const seq = ++productDetailFetchSeqRef.current;
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getProductDetail(token, id);
+      if (seq !== productDetailFetchSeqRef.current) {
+        return;
+      }
+      setProductDetail(res.data);
+    } catch (error) {
+      if (seq !== productDetailFetchSeqRef.current) {
+        return;
+      }
+      setModuleError(error instanceof Error ? error.message : 'Failed to load product.');
+    } finally {
+      if (seq === productDetailFetchSeqRef.current) {
+        setModuleLoading(false);
+      }
+    }
+  }, [token]);
+
   const loadStockStores = async () => {
     const seq = ++stockStoresFetchSeqRef.current;
     setModuleLoading(true);
@@ -2429,6 +2759,7 @@ export function useStaffPortalModel({
       setApprovalNotes((current) => ({ ...current, [id]: '' }));
       const removed = approvalItems.find((item) => item.id === id);
       setApprovalItems((current) => current.filter((item) => item.id !== id));
+      setLeaveApprovalQueueItems((current) => current.filter((item) => item.approval_id !== id));
       setApprovalListTotal((n) => Math.max(0, n - 1));
       if (removed?.kind && approvalSummary) {
         setApprovalSummary((prev) => {
@@ -2603,6 +2934,9 @@ export function useStaffPortalModel({
       if (route === 'Leave Requests') {
         return loadLeaveRequests(page);
       }
+      if (route === 'Team leave approvals' || route === 'HR leave approvals') {
+        return loadLeaveApprovalQueue(route, page);
+      }
       if (route === 'Requisitions') {
         if (canViewMobileRequisitions) {
           return loadRequisitions(page);
@@ -2705,6 +3039,12 @@ export function useStaffPortalModel({
       if (route === 'Part catalog') {
         return fetchPartsCatalog(page, q ?? '');
       }
+      if (isPartsMgmtModuleRoute(route)) {
+        return fetchPartsMgmtList(route, page, q ?? '');
+      }
+      if (route === 'Products') {
+        return fetchProductsCatalog(page, q ?? '');
+      }
       if (route === 'Suppliers') {
         return loadSuppliers(page, q);
       }
@@ -2744,6 +3084,7 @@ export function useStaffPortalModel({
       loadApprovals,
       loadNotifications,
       loadLeaveRequests,
+      loadLeaveApprovalQueue,
       loadRequisitions,
       loadPurchaseOrders,
       loadPurchaseRfqs,
@@ -2768,6 +3109,8 @@ export function useStaffPortalModel({
       loadHospitalityFolios,
       loadSupportTickets,
       fetchPartsCatalog,
+      fetchPartsMgmtList,
+      fetchProductsCatalog,
       loadSuppliers,
       loadUnits,
       loadCategories,
@@ -2931,6 +3274,16 @@ export function useStaffPortalModel({
         await loadSupportTickets();
       } else if (selectedModule === 'Part catalog') {
         await fetchPartsCatalog(1, partQueryCommitted);
+      } else if (selectedModule === PARTS_IN_STORE_ROUTE) {
+        await fetchPartsMgmtList(PARTS_IN_STORE_ROUTE, 1, partInStoreQueryCommitted);
+      } else if (selectedModule === PART_EXPIRATION_ROUTE) {
+        await fetchPartsMgmtList(PART_EXPIRATION_ROUTE, 1, partExpirationQueryCommitted);
+      } else if (selectedModule === PART_CONVERSIONS_ROUTE) {
+        await fetchPartsMgmtList(PART_CONVERSIONS_ROUTE, 1, partConversionQueryCommitted);
+      } else if (selectedModule === PRICE_CATALOG_ROUTE) {
+        await fetchPartsMgmtList(PRICE_CATALOG_ROUTE, 1, priceCatalogQueryCommitted);
+      } else if (selectedModule === 'Products') {
+        await fetchProductsCatalog(1, productQueryCommitted);
       } else if (selectedModule === 'Suppliers') {
         await loadSuppliers(1, supplierQueryCommitted);
       } else if (selectedModule === 'Units') {
@@ -3138,6 +3491,13 @@ export function useStaffPortalModel({
     fetchLogisticsDocuments,
     fetchPartDetail,
     fetchPartsCatalog,
+    fetchPartsMgmtList,
+    fetchPartInStoreDetail,
+    fetchPartExpirationDetail,
+    fetchPartConversionDetail,
+    fetchPriceCatalogDetail,
+    fetchProductDetail,
+    fetchProductsCatalog,
     fetchStockLines,
     formatNow,
     insets,
@@ -3147,6 +3507,11 @@ export function useStaffPortalModel({
     leaveNotes,
     leavePage,
     leaveRequests,
+    leaveApprovalQueueItems,
+    leaveApprovalQueueHasMore,
+    leaveApprovalQueuePage,
+    leaveApprovalQueueUpdatedAt,
+    loadLeaveApprovalQueue,
     leaveStart,
     leaveTypeId,
     leaveTypes,
@@ -3240,6 +3605,61 @@ export function useStaffPortalModel({
     partQueryCommitted,
     partSearchInput,
     partsUpdatedAt,
+    partInStoreItems,
+    partInStorePage,
+    partInStoreHasMore,
+    partInStoreUpdatedAt,
+    partInStoreSearchInput,
+    setPartInStoreSearchInput,
+    partInStoreQueryCommitted,
+    partInStoreDetail,
+    setPartInStoreDetail,
+    partExpirationItems,
+    partExpirationPage,
+    partExpirationHasMore,
+    partExpirationUpdatedAt,
+    partExpirationSearchInput,
+    setPartExpirationSearchInput,
+    partExpirationQueryCommitted,
+    partExpirationWithinDays,
+    setPartExpirationWithinDays,
+    partExpirationDetail,
+    setPartExpirationDetail,
+    partConversionItems,
+    partConversionPage,
+    partConversionHasMore,
+    partConversionUpdatedAt,
+    partConversionSearchInput,
+    setPartConversionSearchInput,
+    partConversionQueryCommitted,
+    partConversionDetail,
+    setPartConversionDetail,
+    priceCatalogItems,
+    priceCatalogPage,
+    priceCatalogHasMore,
+    priceCatalogUpdatedAt,
+    priceCatalogSearchInput,
+    setPriceCatalogSearchInput,
+    priceCatalogQueryCommitted,
+    priceCatalogActiveOnly,
+    setPriceCatalogActiveOnly,
+    priceCatalogDetail,
+    setPriceCatalogDetail,
+    partInStoreDetailFetchSeqRef,
+    partExpirationDetailFetchSeqRef,
+    partConversionDetailFetchSeqRef,
+    priceCatalogDetailFetchSeqRef,
+    productCatalogFetchSeqRef,
+    productDetail,
+    productDetailFetchSeqRef,
+    productHasMore,
+    productItems,
+    productListTotal,
+    productPage,
+    productQueryCommitted,
+    productSearchInput,
+    productsUpdatedAt,
+    setProductSearchInput,
     payrollError,
     payrollLoading,
     payslipDetail,
@@ -3383,6 +3803,7 @@ export function useStaffPortalModel({
     setNotifications,
     setNotificationsUpdatedAt,
     setPartDetail,
+    setProductDetail,
     setPartHasMore,
     setPartItems,
     setPartListTotal,

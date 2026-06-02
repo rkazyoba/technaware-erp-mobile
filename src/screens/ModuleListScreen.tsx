@@ -2,24 +2,27 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, TextInput, View } from 'react-native';
 import type {
   AccountingListItem,
+  AttendanceToday,
   LogisticsDocListItem,
   NotificationItem,
   PettyCashRequestListItem,
   StockReportLine,
   SupportTicketSummary,
 } from '../api';
+import { getAttendanceToday, postAttendancePunch } from '../api';
 import { StaffFinanceListSection } from '../components/finance/StaffFinanceListSection';
 import { Text } from '../components/AppTypography';
 import { WebPortalSurfacePanel } from '../components/WebPortalSurfacePanel';
 import { EmployeeProfileRequiredCard } from '../components/EmployeeProfileRequiredCard';
+import { StatusBadge } from '../components/StatusBadge';
 import { ModuleSearchToolbar } from '../components/ModuleSearchToolbar';
 import { colors } from '../constants/colors';
 import { outfit } from '../constants/typography';
 import { useStaffPortal } from '../context/StaffPortalContext';
-import { canCrud } from '../utils/crudPermissions';
+import { canCrud, canCrudOrLegacy, PARTS_MGMT_LEGACY } from '../utils/crudPermissions';
 import {
   hrCatalogDetailKind,
   hrCatalogListLabel,
@@ -40,6 +43,14 @@ import {
   type FinanceReportMobileModule,
 } from '../utils/financeReportPortal';
 import { isOperationalReportMobileModule } from '../utils/operationalReportPortal';
+import { PartsMgmtListPanel } from '../components/parts/PartsMgmtListPanel';
+import {
+  isPartsMgmtModuleRoute,
+  PART_CONVERSIONS_ROUTE,
+  PART_EXPIRATION_ROUTE,
+  PARTS_IN_STORE_ROUTE,
+  PRICE_CATALOG_ROUTE,
+} from '../utils/partsMgmtPortal';
 import { OperationalReportsPanel } from './OperationalReportsPanel';
 import { ReportWebExportPanel } from '../components/reports/ReportWebExportPanel';
 import { reportWebPdfPath } from '../utils/reportWebPdfUrls';
@@ -148,8 +159,12 @@ function hasListFirstUi(moduleRoute: string, portal: ReturnType<typeof useStaffP
     moduleRoute === 'Guests' ||
     moduleRoute === 'Folios & billing' ||
     moduleRoute === 'Part catalog' ||
+    isPartsMgmtModuleRoute(moduleRoute) ||
+    moduleRoute === 'Products' ||
     moduleRoute === 'Stock by store' ||
-    moduleRoute === 'Attendance'
+    moduleRoute === 'Attendance' ||
+    moduleRoute === 'Team leave approvals' ||
+    moduleRoute === 'HR leave approvals'
   );
 }
 
@@ -162,6 +177,27 @@ export function ModuleListScreen() {
   const sp = useStaffPortal();
   const canCreatePaymentVoucher = useMemo(() => canCrud(sp.portal, 'payment_vouchers', 'create'), [sp.portal]);
   const canCreatePettyCashRequest = canCreatePaymentVoucher;
+  const canCreateRequisition = useMemo(
+    () => canCrudOrLegacy(sp.portal, 'requisitions', 'create', ['erp.user.requisitions']),
+    [sp.portal],
+  );
+  const canCreatePart = useMemo(() => canCrud(sp.portal, 'parts', 'create'), [sp.portal]);
+  const canCreatePartInStore = useMemo(
+    () => canCrudOrLegacy(sp.portal, 'parts_in_store', 'create', PARTS_MGMT_LEGACY.parts_in_store),
+    [sp.portal],
+  );
+  const canCreatePartExpiration = useMemo(
+    () => canCrudOrLegacy(sp.portal, 'part_expiration', 'create', PARTS_MGMT_LEGACY.part_expiration),
+    [sp.portal],
+  );
+  const canCreatePartConversion = useMemo(
+    () => canCrudOrLegacy(sp.portal, 'part_conversions', 'create', PARTS_MGMT_LEGACY.part_conversions),
+    [sp.portal],
+  );
+  const canCreatePriceCatalog = useMemo(
+    () => canCrudOrLegacy(sp.portal, 'price_catalog', 'create', PARTS_MGMT_LEGACY.price_catalog),
+    [sp.portal],
+  );
   const {
     setPortalActiveTab,
     setPortalSelectedModule,
@@ -305,6 +341,14 @@ export function ModuleListScreen() {
     leaveHasMore,
     leaveUpdatedAt,
     loadLeaveRequests,
+    leaveApprovalQueueItems,
+    leaveApprovalQueuePage,
+    leaveApprovalQueueHasMore,
+    leaveApprovalQueueUpdatedAt,
+    loadLeaveApprovalQueue,
+    approvalNotes,
+    setApprovalNotes,
+    setApprovalStatus,
     notifications,
     notificationPage,
     notificationHasMore,
@@ -321,6 +365,47 @@ export function ModuleListScreen() {
     partSearchInput,
     setPartSearchInput,
     partQueryCommitted,
+    productItems,
+    productPage,
+    productHasMore,
+    productsUpdatedAt,
+    fetchProductsCatalog,
+    productSearchInput,
+    setProductSearchInput,
+    productQueryCommitted,
+    fetchPartsMgmtList,
+    partInStoreItems,
+    partInStorePage,
+    partInStoreHasMore,
+    partInStoreUpdatedAt,
+    partInStoreSearchInput,
+    setPartInStoreSearchInput,
+    partInStoreQueryCommitted,
+    partExpirationItems,
+    partExpirationPage,
+    partExpirationHasMore,
+    partExpirationUpdatedAt,
+    partExpirationSearchInput,
+    setPartExpirationSearchInput,
+    partExpirationQueryCommitted,
+    partExpirationWithinDays,
+    setPartExpirationWithinDays,
+    partConversionItems,
+    partConversionPage,
+    partConversionHasMore,
+    partConversionUpdatedAt,
+    partConversionSearchInput,
+    setPartConversionSearchInput,
+    partConversionQueryCommitted,
+    priceCatalogItems,
+    priceCatalogPage,
+    priceCatalogHasMore,
+    priceCatalogUpdatedAt,
+    priceCatalogSearchInput,
+    setPriceCatalogSearchInput,
+    priceCatalogQueryCommitted,
+    priceCatalogActiveOnly,
+    setPriceCatalogActiveOnly,
     stockStores,
     stockStoresUpdatedAt,
     stockStoreId,
@@ -446,11 +531,79 @@ export function ModuleListScreen() {
     setMobileOperatorSearchInput,
     mobileOperatorQueryCommitted,
     loadModuleListForRoute,
+    onPortalNotify,
     portal,
+    token,
     user,
   } = sp;
 
   const essBlocked = moduleRequiresEmployeeProfile(moduleRoute) && !userHasEmployeeProfile(user);
+
+  const [attendanceToday, setAttendanceToday] = useState<AttendanceToday | null>(null);
+  const [attendanceTodayLoading, setAttendanceTodayLoading] = useState(false);
+  const [attendancePunching, setAttendancePunching] = useState(false);
+  const [attendancePunchError, setAttendancePunchError] = useState<string | null>(null);
+  const [leaveApprovalPending, setLeaveApprovalPending] = useState<{ id: string; status: 'Approved' | 'Rejected' } | null>(null);
+  const [leaveApprovalConfirming, setLeaveApprovalConfirming] = useState(false);
+
+  const isTeamLeaveApprovals = moduleRoute === 'Team leave approvals';
+  const isHrLeaveApprovals = moduleRoute === 'HR leave approvals';
+  const isLeaveApprovalModule = isTeamLeaveApprovals || isHrLeaveApprovals;
+  const teamLeaveBlocked = isTeamLeaveApprovals && !userHasEmployeeProfile(user);
+
+  const confirmLeaveApproval = async () => {
+    if (!leaveApprovalPending || leaveApprovalConfirming) {
+      return;
+    }
+    setLeaveApprovalConfirming(true);
+    const result = await setApprovalStatus(leaveApprovalPending.id, leaveApprovalPending.status);
+    setLeaveApprovalConfirming(false);
+    if (!result.ok) {
+      Alert.alert(
+        leaveApprovalPending.status === 'Approved' ? 'Approve failed' : 'Reject failed',
+        result.error,
+      );
+      return;
+    }
+    setLeaveApprovalPending(null);
+    onPortalNotify?.(
+      leaveApprovalPending.status === 'Approved' ? 'Leave approved.' : 'Leave rejected.',
+      'success',
+    );
+  };
+
+  const loadAttendanceToday = useCallback(async () => {
+    if (essBlocked) {
+      setAttendanceToday(null);
+      return;
+    }
+    setAttendanceTodayLoading(true);
+    setAttendancePunchError(null);
+    try {
+      const res = await getAttendanceToday(token);
+      setAttendanceToday(res.data);
+    } catch (e) {
+      setAttendanceToday(null);
+      setAttendancePunchError(e instanceof Error ? e.message : 'Could not load today’s attendance.');
+    } finally {
+      setAttendanceTodayLoading(false);
+    }
+  }, [essBlocked, token]);
+
+  const punchAttendance = async () => {
+    setAttendancePunching(true);
+    setAttendancePunchError(null);
+    try {
+      const res = await postAttendancePunch(token);
+      setAttendanceToday(res.data);
+      onPortalNotify?.(res.message || 'Attendance updated.', 'success');
+      await loadAttendance();
+    } catch (e) {
+      setAttendancePunchError(e instanceof Error ? e.message : 'Could not record punch.');
+    } finally {
+      setAttendancePunching(false);
+    }
+  };
 
   const moduleAccessGate = useMemo(() => portalModuleAccessGate(portal, moduleRoute.trim()), [portal, moduleRoute]);
   const [folioTxnAmount, setFolioTxnAmount] = useState('1');
@@ -486,6 +639,13 @@ export function ModuleListScreen() {
     }
     void loadModuleListRef.current(moduleRoute, 1, '');
   }, [moduleRoute, moduleAccessGate, essBlocked]);
+
+  useEffect(() => {
+    if (moduleRoute !== 'Attendance' || moduleAccessGate !== 'allowed' || essBlocked) {
+      return;
+    }
+    void loadAttendanceToday();
+  }, [moduleRoute, moduleAccessGate, essBlocked, loadAttendanceToday]);
 
   const [logisticsStatusChip, setLogisticsStatusChip] = useState<LogisticsStatusChip>('All');
 
@@ -564,6 +724,15 @@ export function ModuleListScreen() {
     openRecordDetail({
       moduleRoute: 'Part catalog',
       detailKind: 'part',
+      recordId: id,
+      titleHint: code,
+    });
+  };
+
+  const openProduct = (id: string, code: string) => {
+    openRecordDetail({
+      moduleRoute: 'Products',
+      detailKind: 'product',
       recordId: id,
       titleHint: code,
     });
@@ -744,6 +913,51 @@ export function ModuleListScreen() {
         ) : null}
         {moduleRoute === 'Non-PO receipts' && canCreateNonPoReceipt ? (
           <Pressable onPress={() => navigation.navigate('NonPoGrnHeader')} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
+            <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>Create</Text>
+          </Pressable>
+        ) : null}
+        {moduleRoute === 'Requisitions' && canCreateRequisition ? (
+          <Pressable onPress={() => navigation.navigate('RequisitionHeader')} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
+            <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>Create</Text>
+          </Pressable>
+        ) : null}
+        {moduleRoute === 'Part catalog' && canCreatePart ? (
+          <Pressable
+            onPress={() => navigation.navigate('PartCatalogEdit', { moduleRoute })}
+            style={{ paddingHorizontal: 10, paddingVertical: 6 }}
+          >
+            <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>Create</Text>
+          </Pressable>
+        ) : null}
+        {moduleRoute === PARTS_IN_STORE_ROUTE && canCreatePartInStore ? (
+          <Pressable
+            onPress={() => navigation.navigate('PartsMgmtEdit', { kind: 'in_store', moduleRoute })}
+            style={{ paddingHorizontal: 10, paddingVertical: 6 }}
+          >
+            <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>Create</Text>
+          </Pressable>
+        ) : null}
+        {moduleRoute === PART_EXPIRATION_ROUTE && canCreatePartExpiration ? (
+          <Pressable
+            onPress={() => navigation.navigate('PartExpirationForm', { moduleRoute })}
+            style={{ paddingHorizontal: 10, paddingVertical: 6 }}
+          >
+            <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>Create</Text>
+          </Pressable>
+        ) : null}
+        {moduleRoute === PART_CONVERSIONS_ROUTE && canCreatePartConversion ? (
+          <Pressable
+            onPress={() => navigation.navigate('PartsMgmtEdit', { kind: 'conversion', moduleRoute })}
+            style={{ paddingHorizontal: 10, paddingVertical: 6 }}
+          >
+            <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>Create</Text>
+          </Pressable>
+        ) : null}
+        {moduleRoute === PRICE_CATALOG_ROUTE && canCreatePriceCatalog ? (
+          <Pressable
+            onPress={() => navigation.navigate('PartsMgmtEdit', { kind: 'price_catalog', moduleRoute })}
+            style={{ paddingHorizontal: 10, paddingVertical: 6 }}
+          >
             <Text style={{ ...outfit('medium', 12), color: colors.accentTeal }}>Create</Text>
           </Pressable>
         ) : null}
@@ -1052,7 +1266,9 @@ export function ModuleListScreen() {
             {canViewMobileRequisitions && !moduleError && !moduleLoading && requisitionItems.length === 0 ? (
               <View style={styles.emptyStateCard}>
                 <Text style={styles.emptyStateTitle}>No requisitions</Text>
-                <Text style={styles.emptyStateText}>Create requisitions in the web ERP.</Text>
+                <Text style={styles.emptyStateText}>
+                  {canCreateRequisition ? 'Tap Create to start a new requisition.' : 'No requisitions match your access.'}
+                </Text>
               </View>
             ) : null}
             {canViewMobileRequisitions
@@ -1895,6 +2111,125 @@ export function ModuleListScreen() {
           </View>
         ) : null}
 
+        {isLeaveApprovalModule ? (
+          <View style={styles.approvalsSection}>
+            {teamLeaveBlocked ? (
+              <EmployeeProfileRequiredCard title="Team leave approvals unavailable" />
+            ) : null}
+            {!teamLeaveBlocked ? (
+              <>
+                <Text style={styles.syncText}>
+                  Last updated: {leaveApprovalQueueUpdatedAt ?? 'Not synced yet'}
+                </Text>
+                <Text style={[styles.meta, { marginBottom: 8 }]}>
+                  {isTeamLeaveApprovals
+                    ? 'Pending leave from employees you manage as line manager.'
+                    : 'HR queue — approve or reject after manager sign-off when required.'}
+                </Text>
+                {moduleError ? (
+                  <View style={styles.emptyStateCard}>
+                    <Text style={styles.emptyStateTitle}>Could not load leave approvals</Text>
+                    <Text style={styles.emptyStateText}>{moduleError}</Text>
+                    <Pressable
+                      style={styles.detailsButton}
+                      onPress={() => void loadLeaveApprovalQueue(moduleRoute, 1)}
+                    >
+                      <Text style={styles.detailsButtonText}>Retry</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+                {!moduleError && !moduleLoading && leaveApprovalQueueItems.length === 0 ? (
+                  <View style={styles.emptyStateCard}>
+                    <Text style={styles.emptyStateTitle}>No pending leave</Text>
+                    <Text style={styles.emptyStateText}>You are up to date on this queue.</Text>
+                  </View>
+                ) : null}
+                {leaveApprovalQueueItems.map((item) => (
+                  <View key={item.approval_id} style={styles.approvalCard}>
+                    <View style={styles.approvalHeader}>
+                      <Text style={styles.approvalId}>#{item.id}</Text>
+                      <StatusBadge label={item.status || 'Pending'} />
+                    </View>
+                    <Text style={styles.approvalType}>{item.leave_type}</Text>
+                    <Text style={styles.approvalOwner}>
+                      {item.employee_name}
+                      {item.employee_code ? ` (${item.employee_code})` : ''}
+                    </Text>
+                    <Text style={styles.meta}>
+                      {item.date_start || '—'} to {item.date_end || '—'}
+                      {item.days_requested != null ? ` · ${item.days_requested} day(s)` : ''}
+                    </Text>
+                    {item.notes ? (
+                      <Text style={[styles.meta, { marginTop: 4 }]} numberOfLines={3}>
+                        {item.notes}
+                      </Text>
+                    ) : null}
+                    <TextInput
+                      style={{
+                        marginTop: 10,
+                        borderRadius: 10,
+                        borderWidth: 0.5,
+                        borderColor: colors.borderSubtle,
+                        paddingHorizontal: 10,
+                        paddingVertical: 8,
+                        fontSize: 13,
+                        color: colors.textPrimary,
+                        minHeight: 44,
+                        textAlignVertical: 'top',
+                      }}
+                      placeholder="Optional note"
+                      placeholderTextColor={colors.textMuted}
+                      multiline
+                      value={approvalNotes[item.approval_id] ?? ''}
+                      onChangeText={(value) =>
+                        setApprovalNotes((current) => ({
+                          ...current,
+                          [item.approval_id]: value,
+                        }))
+                      }
+                    />
+                    <View style={{ flexDirection: 'row', marginTop: 12, flexWrap: 'wrap' }}>
+                      <Pressable
+                        onPress={() =>
+                          openRecordDetail({
+                            moduleRoute: 'Approvals',
+                            detailKind: 'approval',
+                            recordId: item.approval_id,
+                            titleHint: `LEAVE-${item.id}`,
+                          })
+                        }
+                        style={[styles.detailsButton, { marginRight: 8, marginBottom: 8 }]}
+                      >
+                        <Text style={styles.detailsButtonText}>View</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setLeaveApprovalPending({ id: item.approval_id, status: 'Approved' })}
+                        style={[styles.detailsButton, { marginRight: 8, marginBottom: 8, backgroundColor: colors.statusApprovedBg }]}
+                      >
+                        <Text style={[styles.detailsButtonText, { color: colors.statusApprovedText }]}>Approve</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setLeaveApprovalPending({ id: item.approval_id, status: 'Rejected' })}
+                        style={[styles.detailsButton, { marginBottom: 8, backgroundColor: colors.statusRejectedBg }]}
+                      >
+                        <Text style={[styles.detailsButtonText, { color: colors.statusRejectedText }]}>Reject</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+                {leaveApprovalQueueHasMore ? (
+                  <Pressable
+                    style={styles.detailsButton}
+                    onPress={() => void loadLeaveApprovalQueue(moduleRoute, leaveApprovalQueuePage + 1)}
+                  >
+                    <Text style={styles.detailsButtonText}>Load more</Text>
+                  </Pressable>
+                ) : null}
+              </>
+            ) : null}
+          </View>
+        ) : null}
+
         {moduleRoute === 'Notifications' ? (
           <View style={styles.approvalsSection}>
             <Text style={styles.syncText}>Last updated: {notificationsUpdatedAt ?? 'Not synced yet'}</Text>
@@ -2554,6 +2889,201 @@ export function ModuleListScreen() {
           </View>
         ) : null}
 
+        {moduleRoute === 'Products' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={{ ...outfit('regular', 12), color: colors.textSecondary, marginBottom: 10 }}>
+              Sellable and service products from the web catalog. Search by code or name; open a row for category, unit, and type.
+            </Text>
+            <Text style={styles.syncText}>Last updated: {productsUpdatedAt ?? 'Not synced yet'}</Text>
+            <ModuleSearchToolbar
+              value={productSearchInput}
+              onChangeText={setProductSearchInput}
+              onSearch={() => void fetchProductsCatalog(1, productSearchInput.trim())}
+              onClear={() => {
+                setProductSearchInput('');
+                void fetchProductsCatalog(1, '');
+              }}
+              placeholder="Search code or name"
+            />
+            {moduleError ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Could not load products</Text>
+                <Text style={styles.emptyStateText}>{moduleError}</Text>
+                <Pressable style={styles.detailsButton} onPress={() => void fetchProductsCatalog(1, productQueryCommitted)}>
+                  <Text style={styles.detailsButtonText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {!moduleError && !moduleLoading && productItems.length === 0 ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>No products</Text>
+              </View>
+            ) : null}
+            {productItems.map((item) => (
+              <Pressable key={item.id} style={styles.approvalCard} onPress={() => openProduct(item.id, item.code)}>
+                <View style={styles.approvalHeader}>
+                  <Text style={styles.approvalId}>{item.code}</Text>
+                  <Text style={styles.approvalStatus}>{item.status}</Text>
+                </View>
+                <Text style={styles.approvalSubject} numberOfLines={2}>
+                  {item.name}
+                </Text>
+                <Text style={styles.approvalOwner}>
+                  {item.category || '—'} · {item.unit || '—'}
+                  {item.product_type ? ` · ${item.product_type}` : ''}
+                </Text>
+              </Pressable>
+            ))}
+            {productHasMore ? (
+              <Pressable style={styles.detailsButton} onPress={() => void fetchProductsCatalog(productPage + 1, productQueryCommitted)}>
+                <Text style={styles.detailsButtonText}>Load more</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {isPartsMgmtModuleRoute(moduleRoute) ? (
+          <PartsMgmtListPanel
+            route={moduleRoute}
+            updatedAt={
+              moduleRoute === PARTS_IN_STORE_ROUTE
+                ? partInStoreUpdatedAt
+                : moduleRoute === PART_EXPIRATION_ROUTE
+                  ? partExpirationUpdatedAt
+                  : moduleRoute === PART_CONVERSIONS_ROUTE
+                    ? partConversionUpdatedAt
+                    : priceCatalogUpdatedAt
+            }
+            searchInput={
+              moduleRoute === PARTS_IN_STORE_ROUTE
+                ? partInStoreSearchInput
+                : moduleRoute === PART_EXPIRATION_ROUTE
+                  ? partExpirationSearchInput
+                  : moduleRoute === PART_CONVERSIONS_ROUTE
+                    ? partConversionSearchInput
+                    : priceCatalogSearchInput
+            }
+            onChangeSearch={
+              moduleRoute === PARTS_IN_STORE_ROUTE
+                ? setPartInStoreSearchInput
+                : moduleRoute === PART_EXPIRATION_ROUTE
+                  ? setPartExpirationSearchInput
+                  : moduleRoute === PART_CONVERSIONS_ROUTE
+                    ? setPartConversionSearchInput
+                    : setPriceCatalogSearchInput
+            }
+            onSearch={() => {
+              const q =
+                moduleRoute === PARTS_IN_STORE_ROUTE
+                  ? partInStoreSearchInput.trim()
+                  : moduleRoute === PART_EXPIRATION_ROUTE
+                    ? partExpirationSearchInput.trim()
+                    : moduleRoute === PART_CONVERSIONS_ROUTE
+                      ? partConversionSearchInput.trim()
+                      : priceCatalogSearchInput.trim();
+              void fetchPartsMgmtList(moduleRoute, 1, q);
+            }}
+            onClearSearch={() => {
+              if (moduleRoute === PARTS_IN_STORE_ROUTE) {
+                setPartInStoreSearchInput('');
+                void fetchPartsMgmtList(moduleRoute, 1, '');
+              } else if (moduleRoute === PART_EXPIRATION_ROUTE) {
+                setPartExpirationSearchInput('');
+                void fetchPartsMgmtList(moduleRoute, 1, '');
+              } else if (moduleRoute === PART_CONVERSIONS_ROUTE) {
+                setPartConversionSearchInput('');
+                void fetchPartsMgmtList(moduleRoute, 1, '');
+              } else {
+                setPriceCatalogSearchInput('');
+                void fetchPartsMgmtList(moduleRoute, 1, '');
+              }
+            }}
+            moduleError={moduleError}
+            moduleLoading={moduleLoading}
+            onRetry={() => {
+              const q =
+                moduleRoute === PARTS_IN_STORE_ROUTE
+                  ? partInStoreQueryCommitted
+                  : moduleRoute === PART_EXPIRATION_ROUTE
+                    ? partExpirationQueryCommitted
+                    : moduleRoute === PART_CONVERSIONS_ROUTE
+                      ? partConversionQueryCommitted
+                      : priceCatalogQueryCommitted;
+              void fetchPartsMgmtList(moduleRoute, 1, q);
+            }}
+            items={
+              moduleRoute === PARTS_IN_STORE_ROUTE
+                ? partInStoreItems
+                : moduleRoute === PART_EXPIRATION_ROUTE
+                  ? partExpirationItems
+                  : moduleRoute === PART_CONVERSIONS_ROUTE
+                    ? partConversionItems
+                    : priceCatalogItems
+            }
+            hasMore={
+              moduleRoute === PARTS_IN_STORE_ROUTE
+                ? partInStoreHasMore
+                : moduleRoute === PART_EXPIRATION_ROUTE
+                  ? partExpirationHasMore
+                  : moduleRoute === PART_CONVERSIONS_ROUTE
+                    ? partConversionHasMore
+                    : priceCatalogHasMore
+            }
+            onLoadMore={() => {
+              const q =
+                moduleRoute === PARTS_IN_STORE_ROUTE
+                  ? partInStoreQueryCommitted
+                  : moduleRoute === PART_EXPIRATION_ROUTE
+                    ? partExpirationQueryCommitted
+                    : moduleRoute === PART_CONVERSIONS_ROUTE
+                      ? partConversionQueryCommitted
+                      : priceCatalogQueryCommitted;
+              const page =
+                moduleRoute === PARTS_IN_STORE_ROUTE
+                  ? partInStorePage
+                  : moduleRoute === PART_EXPIRATION_ROUTE
+                    ? partExpirationPage
+                    : moduleRoute === PART_CONVERSIONS_ROUTE
+                      ? partConversionPage
+                      : priceCatalogPage;
+              void fetchPartsMgmtList(moduleRoute, page + 1, q);
+            }}
+            onOpenDetail={(id, titleHint) => {
+              const kind =
+                moduleRoute === PARTS_IN_STORE_ROUTE
+                  ? 'part_in_store'
+                  : moduleRoute === PART_EXPIRATION_ROUTE
+                    ? 'part_expiration'
+                    : moduleRoute === PART_CONVERSIONS_ROUTE
+                      ? 'part_conversion'
+                      : 'price_catalog';
+              openRecordDetail({ moduleRoute, detailKind: kind, recordId: id, titleHint });
+            }}
+            expiringWithinDays={partExpirationWithinDays}
+            onToggleExpiringFilter={
+              moduleRoute === PART_EXPIRATION_ROUTE
+                ? () => {
+                    const next = partExpirationWithinDays > 0 ? 0 : 60;
+                    setPartExpirationWithinDays(next);
+                    void fetchPartsMgmtList(PART_EXPIRATION_ROUTE, 1, partExpirationQueryCommitted, {
+                      expiringWithinDays: next,
+                    });
+                  }
+                : undefined
+            }
+            priceCatalogActiveOnly={priceCatalogActiveOnly}
+            onTogglePriceActiveOnly={
+              moduleRoute === PRICE_CATALOG_ROUTE
+                ? () => {
+                    const next = !priceCatalogActiveOnly;
+                    setPriceCatalogActiveOnly(next);
+                    void fetchPartsMgmtList(PRICE_CATALOG_ROUTE, 1, priceCatalogQueryCommitted, { activeOnly: next });
+                  }
+                : undefined
+            }
+          />
+        ) : null}
+
         {moduleRoute === 'Part catalog' ? (
           <View style={styles.approvalsSection}>
             <Text style={{ ...outfit('regular', 12), color: colors.textSecondary, marginBottom: 10 }}>
@@ -2697,9 +3227,43 @@ export function ModuleListScreen() {
             {essBlocked ? <EmployeeProfileRequiredCard title="Attendance unavailable" /> : null}
             {!essBlocked ? (
             <>
+            <View style={[styles.approvalCard, { marginBottom: 14 }]}>
+              <Text style={{ ...outfit('medium', 15), color: colors.textPrimary }}>Today</Text>
+              {attendanceTodayLoading ? (
+                <ActivityIndicator style={{ marginTop: 12 }} color={colors.accentTeal} />
+              ) : attendanceToday ? (
+                <>
+                  <Text style={[styles.approvalOwner, { marginTop: 8 }]}>
+                    In {attendanceToday.check_in ?? '—'} · Out {attendanceToday.check_out ?? '—'}
+                    {attendanceToday.hours_worked != null ? ` · ${attendanceToday.hours_worked}h` : ''}
+                  </Text>
+                  {attendanceToday.completed ? (
+                    <Text style={[styles.meta, { marginTop: 6 }]}>Day complete. Contact HR to change times.</Text>
+                  ) : null}
+                  {attendanceToday.can_check_in || attendanceToday.can_check_out ? (
+                    <Pressable
+                      style={[styles.detailsButton, { marginTop: 12 }, attendancePunching && { opacity: 0.6 }]}
+                      onPress={() => void punchAttendance()}
+                      disabled={attendancePunching}
+                    >
+                      <Text style={styles.detailsButtonText}>
+                        {attendancePunching
+                          ? 'Recording…'
+                          : attendanceToday.can_check_in
+                            ? 'Clock in'
+                            : 'Clock out'}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </>
+              ) : null}
+              {attendancePunchError ? (
+                <Text style={{ ...outfit('regular', 13), color: colors.trendDown, marginTop: 8 }}>{attendancePunchError}</Text>
+              ) : null}
+            </View>
             <Text style={styles.syncText}>
-              Last updated: {attendanceUpdatedAt ?? 'Not synced yet'}
-              {attendanceFrom ? ` · From ${attendanceFrom}` : ''}
+              History · last updated: {attendanceUpdatedAt ?? 'Not synced yet'}
+              {attendanceFrom ? ` · from ${attendanceFrom}` : ''}
             </Text>
             {moduleError ? (
               <View style={styles.emptyStateCard}>
@@ -3361,6 +3925,65 @@ export function ModuleListScreen() {
         )}
       </ScrollView>
       )}
+
+      <Modal
+        visible={leaveApprovalPending != null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !leaveApprovalConfirming && setLeaveApprovalPending(null)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
+          onPress={() => !leaveApprovalConfirming && setLeaveApprovalPending(null)}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: colors.surface,
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              padding: 20,
+              paddingBottom: 28,
+            }}
+          >
+            <Text style={{ ...outfit('medium', 16), color: colors.textPrimary }}>
+              {leaveApprovalPending?.status === 'Approved' ? 'Approve this leave?' : 'Reject this leave?'}
+            </Text>
+            <Text style={{ ...outfit('regular', 13), color: colors.textSecondary, marginTop: 8 }}>
+              Your optional note will be saved with this decision.
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 20 }}>
+              <Pressable
+                onPress={() => !leaveApprovalConfirming && setLeaveApprovalPending(null)}
+                disabled={leaveApprovalConfirming}
+                style={{ paddingVertical: 10, paddingHorizontal: 14 }}
+              >
+                <Text style={{ ...outfit('medium', 14), color: colors.textSecondary }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void confirmLeaveApproval()}
+                disabled={leaveApprovalConfirming}
+                style={{ paddingVertical: 10, paddingHorizontal: 14, marginLeft: 8, flexDirection: 'row', alignItems: 'center' }}
+              >
+                {leaveApprovalConfirming ? (
+                  <ActivityIndicator size="small" color={colors.accentTeal} style={{ marginRight: 8 }} />
+                ) : null}
+                <Text
+                  style={{
+                    ...outfit('medium', 14),
+                    color:
+                      leaveApprovalPending?.status === 'Approved'
+                        ? colors.statusApprovedText
+                        : colors.statusRejectedText,
+                  }}
+                >
+                  {leaveApprovalConfirming ? 'Saving…' : 'Confirm'}
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

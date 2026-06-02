@@ -3,6 +3,10 @@ import { staffPortalHasAnyPermission, staffPortalHasPermission } from './staffPo
 
 export type CrudResource =
   | 'parts'
+  | 'parts_in_store'
+  | 'part_expiration'
+  | 'part_conversions'
+  | 'price_catalog'
   | 'suppliers'
   | 'units'
   | 'categories'
@@ -19,7 +23,8 @@ export type CrudResource =
   | 'store_receipts'
   | 'supplier_returns'
   | 'pick_tickets'
-  | 'payment_vouchers';
+  | 'payment_vouchers'
+  | 'requisitions';
 
 export type CrudAction = 'view' | 'create' | 'update' | 'delete' | 'approve';
 
@@ -55,4 +60,12 @@ export const LOGISTICS_LEGACY: Record<string, readonly string[]> = {
   store_issues: ['erp.user.store_issues'],
   store_receipts: ['erp.user.store_receipts'],
   supplier_returns: ['erp.user.supplier_returns'],
+  requisitions: ['erp.user.requisitions'],
+};
+
+export const PARTS_MGMT_LEGACY: Record<string, readonly string[]> = {
+  parts_in_store: ['erp.nav.stock', 'erp.user.catalog', 'erp.nav.catalog'],
+  part_expiration: ['erp.nav.stock', 'erp.user.catalog', 'erp.user.stock'],
+  part_conversions: ['erp.nav.stock', 'erp.nav.catalog'],
+  price_catalog: ['erp.nav.stock', 'erp.user.catalog', 'erp.nav.catalog'],
 };

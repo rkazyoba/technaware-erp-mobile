@@ -54,7 +54,8 @@ The mobile product is **staff / warehouse / field** oriented. **Platform admin**
 
 | Web | Mobile |
 |-----|--------|
-| Units, categories, products, price catalog, bank masters, mobile operators, suppliers | **Web-only** (except **Part catalog** below) |
+| Units, categories, bank masters, mobile operators, suppliers | **Web-only** (except parts/products modules below) |
+| Products (sellable / service catalog) | **Products** (`/master-data/products`) — list + detail (read-only) |
 
 ---
 
@@ -73,8 +74,9 @@ The mobile product is **staff / warehouse / field** oriented. **Platform admin**
 
 | Web | Mobile |
 |-----|--------|
-| Requisitions, approve requisitions | **Requisitions** surface (`/requisitions`) |
-| Purchase orders, approve POs, daily purchase report | **Web-only** for PO lists/reports; PO-related **GRN** is covered under inventory |
+| Requisitions, approve requisitions | **Requisitions** — list, detail, **create header + lines + submit** (`/requisitions/*` write APIs); approve via **Approvals** |
+| Purchase orders, approve POs, daily purchase report | **Purchase orders** read-only list/detail; daily report **web-only**; PO **GRN** under inventory |
+| Purchase RFQs, supplier quotations | **Read-only** list/detail; issue/award on **web** |
 
 ---
 
@@ -82,10 +84,14 @@ The mobile product is **staff / warehouse / field** oriented. **Platform admin**
 
 | Web | Mobile |
 |-----|--------|
-| Parts catalog, price catalog, conversions, in-store, expiration | **Part catalog** (`/parts`) — list + detail |
+| Parts catalog | **Part catalog** (`/parts`) — list + detail |
+| Parts in store | **Parts in store** — list + detail (store-scoped) |
+| Part expiration (lots / GRN) | **Part expiration** — list + detail; filter expiring ≤ 60 days |
+| Part conversions (exchange rates) | **Part conversions** — list + detail |
+| Price catalog | **Price catalog** — list + detail (+ sibling rows on part) |
 | Stock report, supplier-wise stock | **Stock by store** (`/inventory/stock-report/*`) |
 
-**Gap:** Part conversions, expiration calendar, supplier-wise report as **dedicated** mobile flows.
+**Write on mobile:** Catalog part create/edit; parts in store; part conversions; price catalog (incl. activate); expiration lots on GRN lines (create/edit/delete). Supplier-wise stock report not a dedicated module.
 
 ---
 
@@ -128,7 +134,9 @@ The mobile product is **staff / warehouse / field** oriented. **Platform admin**
 | Web | Mobile |
 |-----|--------|
 | Full HR master (employees, grades, departments, statutory returns, payroll setup, …) | **Web-only** |
-| ESS leave, attendance (employee) | **Leave Requests**, **Attendance**, **Payroll** tab (payslips) |
+| ESS leave, attendance (employee) | **Leave Requests**, **Attendance** (clock in/out + history), **Payroll** tab (payslips) |
+| Manager leave approval (direct reports) | **Team leave approvals** — dedicated queue + approve/reject (also in **Approvals** inbox) |
+| HR leave approval | **HR leave approvals** — HR queue + approve/reject (also in **Approvals** when `leave_admin` enabled) |
 
 ---
 

@@ -70,6 +70,10 @@ export function QuickCreateSheet({ visible, onClose }: QuickCreateSheetProps) {
 
   const canLeave = isPortalModuleRouteAccessible(portal, 'Leave Requests');
 
+  const canNativeRequisition =
+    isPortalModuleRouteAccessible(portal, 'Requisitions') &&
+    canCrudOrLegacy(portal, 'requisitions', 'create', ['erp.user.requisitions']);
+
   const canStaffFinance =
     isPortalModuleRouteAccessible(portal, 'Staff imprest') ||
     isPortalModuleRouteAccessible(portal, 'Expense claims') ||
@@ -138,6 +142,15 @@ export function QuickCreateSheet({ visible, onClose }: QuickCreateSheetProps) {
       label: 'New leave request',
       icon: 'calendar-outline',
       onPress: () => goModulesScreen('LeaveRequestForm', 'Leave Requests'),
+    });
+  }
+
+  if (canNativeRequisition) {
+    rows.push({
+      key: 'requisition',
+      label: 'New purchase requisition',
+      icon: 'reader-outline',
+      onPress: () => goModulesScreen('RequisitionHeader', 'Requisitions'),
     });
   }
 

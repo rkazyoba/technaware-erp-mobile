@@ -21,6 +21,11 @@ export type RecordDetailParams = {
     | 'approval'
     | 'leave'
     | 'part'
+    | 'part_in_store'
+    | 'part_expiration'
+    | 'part_conversion'
+    | 'price_catalog'
+    | 'product'
     | 'support'
     | 'notification'
     | 'stock_line'
@@ -111,7 +116,16 @@ export type ModulesStackParamList = {
     moduleRoute: string;
     recordId?: string;
   };
+  PartCatalogEdit: { moduleRoute: string; recordId?: string };
+  PartsMgmtEdit: {
+    kind: 'in_store' | 'conversion' | 'price_catalog';
+    moduleRoute: string;
+    recordId?: string;
+  };
+  PartExpirationForm: { moduleRoute: string; recordId?: string; receiptId?: string };
   LeaveRequestForm: undefined;
+  RequisitionHeader: undefined;
+  RequisitionWorkspace: { requisitionId: string; initialTab?: 'overview' | 'lines' };
   PettyCashRequestForm: { requestType?: 'imprest' | 'expense_claim' } | undefined;
   PaymentVoucherForm: undefined;
   CustomerPaymentRecord: {
