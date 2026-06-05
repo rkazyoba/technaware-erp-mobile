@@ -20,7 +20,7 @@ import { outfit } from '../constants/typography';
 import { useStaffPortal } from '../context/StaffPortalContext';
 import type { ModulesStackParamList } from '../navigation/moduleStackTypes';
 import { isPortalModuleRouteAccessible, portalModuleAccessGate } from '../utils/portalModuleAccess';
-import { staffPortalHasPermission } from '../utils/staffPortalPermissions';
+import { canCreateCrud } from '../utils/crudPermissions';
 
 function isoToday(): string {
   const d = new Date();
@@ -36,7 +36,7 @@ export function DeliveryNoteHeaderScreen() {
   const { token, portal, setPortalActiveTab, setPortalSelectedModule } = sp;
 
   const moduleGate = useMemo(() => portalModuleAccessGate(portal, 'Delivery notes'), [portal]);
-  const canCreate = staffPortalHasPermission(portal, 'erp.user.delivery_notes');
+  const canCreate = useMemo(() => canCreateCrud(portal, 'delivery_notes'), [portal]);
 
   const [description, setDescription] = useState('');
   const [preparedDate, setPreparedDate] = useState(isoToday());

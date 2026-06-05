@@ -35,6 +35,7 @@ import { useStaffPortal } from '../context/StaffPortalContext';
 import type { ModulesStackParamList } from '../navigation/moduleStackTypes';
 import { isPortalModuleRouteAccessible, portalModuleAccessGate } from '../utils/portalModuleAccess';
 import { staffPortalHasPermission } from '../utils/staffPortalPermissions';
+import { canPerformWrite } from '../utils/writeGate';
 
 export function StoreMovementLinesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ModulesStackParamList>>();
@@ -45,18 +46,38 @@ export function StoreMovementLinesScreen() {
   const TAB_LINES = 'lines';
 
   const sp = useStaffPortal();
-  const { token, portal, stockStores, loadStockStores, setPortalActiveTab, setPortalSelectedModule } = sp;
+  const { token, portal, stockStores, loadStockStores, setPortalActiveTab, setPortalSelectedModule, isOffline, onPortalNotify } = sp;
 
   const moduleGate = useMemo(() => portalModuleAccessGate(portal, 'Store movements'), [portal]);
 
   const canEdit = useMemo(() => {
     if (docKind === 'kitchen_to_store') {
-      return staffPortalHasPermission(portal, 'erp.user.kitchen_to_store');
+      return (
+        staffPortalHasPermission(portal, 'erp.user.kitchen_to_store')
+        || staffPortalHasPermission(portal, 'erp.user.store_issues')
+        || staffPortalHasPermission(portal, 'erp.crud.kitchen_to_store.update')
+      );
     }
-    return staffPortalHasPermission(portal, 'erp.user.store_to_kitchen');
+    return (
+      staffPortalHasPermission(portal, 'erp.user.store_to_kitchen')
+      || staffPortalHasPermission(portal, 'erp.crud.store_to_kitchen.update')
+    );
   }, [docKind, portal]);
 
-  const canView = canEdit || staffPortalHasPermission(portal, 'erp.nav.inventory');
+  const canView = useMemo(() => {
+    if (docKind === 'kitchen_to_store') {
+      return (
+        canEdit
+        || staffPortalHasPermission(portal, 'erp.crud.kitchen_to_store.view')
+        || staffPortalHasPermission(portal, 'erp.nav.inventory')
+      );
+    }
+    return (
+      canEdit
+      || staffPortalHasPermission(portal, 'erp.crud.store_to_kitchen.view')
+      || staffPortalHasPermission(portal, 'erp.nav.inventory')
+    );
+  }, [canEdit, docKind, portal]);
 
   const [detailTab, setDetailTab] = useState(initialTab ?? TAB_OVERVIEW);
 
@@ -142,6 +163,9 @@ export function StoreMovementLinesScreen() {
   };
 
   const submitLine = async () => {
+    if (!canPerformWrite(isOffline, (message) => onPortalNotify?.(message, 'info'))) {
+      return;
+    }
     if (!selectedStock) {
       Alert.alert('Pick an item', 'Choose a stock line first.');
       return;
@@ -210,6 +234,9 @@ export function StoreMovementLinesScreen() {
   };
 
   const deleteLine = async (lineId: string) => {
+    if (!canPerformWrite(isOffline, (message) => onPortalNotify?.(message, 'info'))) {
+      return;
+    }
     setDeletingLineId(lineId);
     try {
       if (docKind === 'kitchen_to_store') {

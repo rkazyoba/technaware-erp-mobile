@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { clearMobileSummaryCache, loadMobileSummaryCache, saveMobileSummaryCache } from '../utils/mobileSummaryStorage';
+import { loadMobileSummaryCache, saveMobileSummaryCache } from '../utils/mobileSummaryStorage';
+import {
+  approvalsSnapshotKey,
+  clearAllPortalSnapshotsForUser,
+  leaveApprovalQueueSnapshotKey,
+  loadPortalSnapshot,
+  logisticsSnapshotKey,
+  persistPortalSnapshot,
+} from '../utils/portalSnapshotStorage';
+import { OFFLINE_REFRESH_MESSAGE } from '../utils/writeGate';
 import {
   staffPortalHasPermission,
   visibleStoreMovementKindsForPortal,
@@ -220,7 +229,7 @@ import {
 } from '../utils/partsMgmtPortal';
 import { isAccountingApiListModule, type AccountingApiListModule } from '../utils/accountingPortal';
 import { isFinanceReportMobileModule } from '../utils/financeReportPortal';
-import { canCrud, canCrudOrLegacy, LOGISTICS_LEGACY } from '../utils/crudPermissions';
+import { canCreateCrud, canCrud, canCrudOrLegacy, LOGISTICS_LEGACY } from '../utils/crudPermissions';
 import { friendlyModuleLoadError } from '../utils/employeeProfile';
 
 const LOGISTICS_DOC_ROUTES: Record<string, string> = {
@@ -274,6 +283,45 @@ export type LoadApprovalsOptions = {
   kind?: string;
 };
 
+type ApprovalsListSnapshot = {
+  items: ApprovalItem[];
+  summary: ApprovalsSummary | null;
+  page: number;
+  hasMore: boolean;
+  listTotal: number;
+};
+
+type LogisticsListSnapshot = {
+  items: LogisticsDocListItem[];
+  page: number;
+  hasMore: boolean;
+  total: number;
+  basePath: string;
+  query: string;
+};
+
+type LeaveRequestsSnapshot = {
+  items: LeaveRequestItem[];
+  types: LeaveTypeItem[];
+  page: number;
+  hasMore: boolean;
+  leaveTypeId: string;
+};
+
+type LeaveApprovalQueueSnapshot = {
+  items: LeaveApprovalQueueItem[];
+  page: number;
+  hasMore: boolean;
+  route: string;
+};
+
+type FinanceListSnapshot<T> = {
+  items: T[];
+  page: number;
+  hasMore: boolean;
+  query: string;
+};
+
 export type StaffPortalModelInput = {
   token: string;
   user: SignedInUser | null;
@@ -281,10 +329,12 @@ export type StaffPortalModelInput = {
   activeTab: AppTab;
   selectedModule: string;
   loading: boolean;
+  isOffline: boolean;
   onSetTab: (tab: AppTab) => void;
   onRefreshProfile: (options?: RefreshProfileOptions) => void | Promise<void>;
   onLogout: () => void;
   onOpenAction: (title: string) => void;
+  onPortalNotify?: (message: string, type?: 'info' | 'success' | 'error') => void;
 };
 
 export function useStaffPortalModel({
@@ -294,10 +344,12 @@ export function useStaffPortalModel({
   activeTab,
   selectedModule,
   loading,
+  isOffline,
   onSetTab,
   onRefreshProfile,
   onLogout,
   onOpenAction,
+  onPortalNotify,
 }: StaffPortalModelInput) {
   const insets = useSafeAreaInsets();
   const appBaseUrl = API_BASE_URL.replace('/api/v1', '');
@@ -433,27 +485,21 @@ export function useStaffPortalModel({
     [portal],
   );
 
-  const canCreatePoReceipt = useMemo(
-    () => canCrudOrLegacy(portal, 'po_receipts', 'create', LOGISTICS_LEGACY.po_receipts),
-    [portal],
-  );
+  const canCreatePoReceipt = useMemo(() => canCreateCrud(portal, 'po_receipts'), [portal]);
 
   const canUpdatePoReceipt = useMemo(
     () => canCrudOrLegacy(portal, 'po_receipts', 'update', LOGISTICS_LEGACY.po_receipts),
     [portal],
   );
 
-  const canCreateNonPoReceipt = useMemo(
-    () => canCrudOrLegacy(portal, 'non_po_receipts', 'create', LOGISTICS_LEGACY.non_po_receipts),
-    [portal],
-  );
+  const canCreateNonPoReceipt = useMemo(() => canCreateCrud(portal, 'non_po_receipts'), [portal]);
 
   const canCreateSupplierReturn = useMemo(
     () => canCrudOrLegacy(portal, 'supplier_returns', 'create', LOGISTICS_LEGACY.supplier_returns),
     [portal],
   );
 
-  const canCreatePickTicket = useMemo(() => canCrud(portal, 'pick_tickets', 'create'), [portal]);
+  const canCreatePickTicket = useMemo(() => canCreateCrud(portal, 'pick_tickets'), [portal]);
 
   const canUpdateNonPoReceipt = useMemo(
     () => canCrudOrLegacy(portal, 'non_po_receipts', 'update', LOGISTICS_LEGACY.non_po_receipts),
@@ -864,6 +910,58 @@ export function useStaffPortalModel({
       minute: '2-digit',
     });
 
+  const portalUserId = String(user?.id ?? '');
+
+  const applyApprovalsSnapshot = useCallback((snapshot: ApprovalsListSnapshot, networkAt: number) => {
+    setApprovalItems(snapshot.items);
+    if (snapshot.summary) {
+      setApprovalSummary(snapshot.summary);
+    }
+    setApprovalPage(snapshot.page);
+    setApprovalHasMore(snapshot.hasMore);
+    setApprovalListTotal(snapshot.listTotal);
+    setApprovalsUpdatedAt(formatShortTime(networkAt));
+    lastApprovalsNetworkAtRef.current = networkAt;
+  }, []);
+
+  const hydrateApprovalsFromDisk = useCallback(
+    async (kindFilter?: string): Promise<boolean> => {
+      if (portalUserId === '') {
+        return false;
+      }
+      const envelope = await loadPortalSnapshot<ApprovalsListSnapshot>(
+        portalUserId,
+        approvalsSnapshotKey(kindFilter),
+      );
+      if (!envelope) {
+        return false;
+      }
+      applyApprovalsSnapshot(envelope.data, envelope.networkAt);
+      return true;
+    },
+    [portalUserId, applyApprovalsSnapshot],
+  );
+
+  const hydrateFinanceListFromDisk = useCallback(
+    async <T,>(
+      snapshotKey: string,
+      apply: (snapshot: FinanceListSnapshot<T>, networkAt: number) => void,
+    ): Promise<boolean> => {
+      if (portalUserId === '') {
+        return false;
+      }
+      const envelope = await loadPortalSnapshot<FinanceListSnapshot<T>>(portalUserId, snapshotKey);
+      if (!envelope) {
+        return false;
+      }
+      apply(envelope.data, envelope.networkAt);
+      return envelope.data.items.length > 0;
+    },
+    [portalUserId],
+  );
+
+  const financeSnapshotKey = (base: string, query: string) => (query.trim() ? `${base}:${query.trim()}` : base);
+
   const loadApprovalSummary = async (opts?: { force?: boolean }) => {
     const force = opts?.force ?? false;
     const now = Date.now();
@@ -899,6 +997,12 @@ export function useStaffPortalModel({
     ) {
       return;
     }
+
+    let hasLocal = page === 1 && approvalItems.length > 0;
+    if (page === 1 && !hasLocal) {
+      hasLocal = await hydrateApprovalsFromDisk(kindFilter);
+    }
+
     setModuleLoading(true);
     setModuleError(null);
     try {
@@ -914,9 +1018,23 @@ export function useStaffPortalModel({
       setApprovalListTotal(res.data.pagination.total ?? 0);
       setApprovalsUpdatedAt(formatNow());
       if (page === 1) {
-        lastApprovalsNetworkAtRef.current = Date.now();
+        const networkAt = Date.now();
+        lastApprovalsNetworkAtRef.current = networkAt;
+        if (portalUserId !== '') {
+          void persistPortalSnapshot(portalUserId, approvalsSnapshotKey(kindFilter), {
+            items: res.data.items,
+            summary: res.data.summary ?? approvalSummary,
+            page: res.data.pagination.current_page,
+            hasMore: res.data.pagination.has_more,
+            listTotal: res.data.pagination.total ?? 0,
+          }).catch(() => {});
+        }
       }
     } catch (error) {
+      if (page === 1 && (hasLocal || approvalItems.length > 0)) {
+        setModuleError(null);
+        return;
+      }
       setModuleError(error instanceof Error ? error.message : 'Failed to load approvals.');
     } finally {
       setModuleLoading(false);
@@ -950,6 +1068,19 @@ export function useStaffPortalModel({
       leaveApprovalQueueRouteRef.current = route;
       setLeaveApprovalQueueItems([]);
     }
+    const snapshotKey = leaveApprovalQueueSnapshotKey(route);
+    let hasLocal = page === 1 && leaveApprovalQueueItems.length > 0 && leaveApprovalQueueRouteRef.current === route;
+    if (page === 1 && !hasLocal && portalUserId !== '') {
+      const envelope = await loadPortalSnapshot<LeaveApprovalQueueSnapshot>(portalUserId, snapshotKey);
+      if (envelope && envelope.data.route === route) {
+        setLeaveApprovalQueueItems(envelope.data.items);
+        leaveApprovalQueueRouteRef.current = route;
+        setLeaveApprovalQueuePage(envelope.data.page);
+        setLeaveApprovalQueueHasMore(envelope.data.hasMore);
+        setLeaveApprovalQueueUpdatedAt(formatShortTime(envelope.networkAt));
+        hasLocal = envelope.data.items.length > 0;
+      }
+    }
     setModuleLoading(true);
     setModuleError(null);
     try {
@@ -962,7 +1093,19 @@ export function useStaffPortalModel({
       setLeaveApprovalQueuePage(res.data.pagination.current_page);
       setLeaveApprovalQueueHasMore(res.data.pagination.has_more);
       setLeaveApprovalQueueUpdatedAt(formatNow());
+      if (page === 1 && portalUserId !== '') {
+        void persistPortalSnapshot(portalUserId, snapshotKey, {
+          items: res.data.items,
+          page: res.data.pagination.current_page,
+          hasMore: res.data.pagination.has_more,
+          route,
+        }).catch(() => {});
+      }
     } catch (error) {
+      if (page === 1 && (hasLocal || leaveApprovalQueueItems.length > 0)) {
+        setModuleError(null);
+        return;
+      }
       setModuleError(error instanceof Error ? error.message : 'Failed to load leave approvals.');
     } finally {
       setModuleLoading(false);
@@ -970,6 +1113,22 @@ export function useStaffPortalModel({
   };
 
   const loadLeaveRequests = async (page = 1) => {
+    const snapshotKey = 'hr:leave_requests';
+    let hasLocal = page === 1 && leaveRequests.length > 0;
+    if (page === 1 && !hasLocal && portalUserId !== '') {
+      const envelope = await loadPortalSnapshot<LeaveRequestsSnapshot>(portalUserId, snapshotKey);
+      if (envelope) {
+        setLeaveRequests(envelope.data.items);
+        setLeaveTypes(envelope.data.types);
+        setLeavePage(envelope.data.page);
+        setLeaveHasMore(envelope.data.hasMore);
+        if (envelope.data.leaveTypeId) {
+          setLeaveTypeId(envelope.data.leaveTypeId);
+        }
+        setLeaveUpdatedAt(formatShortTime(envelope.networkAt));
+        hasLocal = envelope.data.items.length > 0;
+      }
+    }
     setModuleLoading(true);
     setModuleError(null);
     try {
@@ -978,11 +1137,26 @@ export function useStaffPortalModel({
       setLeavePage(requestsRes.data.pagination.current_page);
       setLeaveHasMore(requestsRes.data.pagination.has_more);
       setLeaveTypes(typesRes.data.items);
+      const nextLeaveTypeId =
+        !leaveTypeId && typesRes.data.items.length > 0 ? typesRes.data.items[0]!.id : leaveTypeId;
       if (!leaveTypeId && typesRes.data.items.length > 0) {
-        setLeaveTypeId(typesRes.data.items[0].id);
+        setLeaveTypeId(typesRes.data.items[0]!.id);
       }
       setLeaveUpdatedAt(formatNow());
+      if (page === 1 && portalUserId !== '') {
+        void persistPortalSnapshot(portalUserId, snapshotKey, {
+          items: requestsRes.data.items,
+          types: typesRes.data.items,
+          page: requestsRes.data.pagination.current_page,
+          hasMore: requestsRes.data.pagination.has_more,
+          leaveTypeId: nextLeaveTypeId,
+        }).catch(() => {});
+      }
     } catch (error) {
+      if (page === 1 && (hasLocal || leaveRequests.length > 0)) {
+        setModuleError(null);
+        return;
+      }
       setModuleError(
         friendlyModuleLoadError(error instanceof Error ? error.message : null, 'Failed to load leave requests.'),
       );
@@ -1109,9 +1283,20 @@ export function useStaffPortalModel({
 
   // ---- Finance lists/details ----
   const loadCustomerInvoices = async (page = 1, q?: string) => {
+    const query = q !== undefined ? q : customerInvoiceQueryCommitted;
+    const snapshotKey = financeSnapshotKey('finance:customer_invoices', query);
+    let hasLocal = page === 1 && customerInvoiceItems.length > 0;
+    if (page === 1 && !hasLocal) {
+      hasLocal = await hydrateFinanceListFromDisk<CustomerInvoiceListItem>(snapshotKey, (snapshot, networkAt) => {
+        setCustomerInvoiceItems(snapshot.items);
+        setCustomerInvoicePage(snapshot.page);
+        setCustomerInvoiceHasMore(snapshot.hasMore);
+        setCustomerInvoiceQueryCommitted(snapshot.query);
+        setCustomerInvoicesUpdatedAt(formatShortTime(networkAt));
+      });
+    }
     setModuleLoading(true);
     setModuleError(null);
-    const query = q !== undefined ? q : customerInvoiceQueryCommitted;
     if (page === 1) {
       setCustomerInvoiceQueryCommitted(query);
     }
@@ -1121,7 +1306,19 @@ export function useStaffPortalModel({
       setCustomerInvoicePage(res.data.pagination.current_page);
       setCustomerInvoiceHasMore(res.data.pagination.has_more);
       setCustomerInvoicesUpdatedAt(formatNow());
+      if (page === 1 && portalUserId !== '') {
+        void persistPortalSnapshot(portalUserId, snapshotKey, {
+          items: res.data.items,
+          page: res.data.pagination.current_page,
+          hasMore: res.data.pagination.has_more,
+          query,
+        }).catch(() => {});
+      }
     } catch (error) {
+      if (page === 1 && (hasLocal || customerInvoiceItems.length > 0)) {
+        setModuleError(null);
+        return;
+      }
       setModuleError(error instanceof Error ? error.message : 'Failed to load customer invoices.');
     } finally {
       setModuleLoading(false);
@@ -1145,9 +1342,20 @@ export function useStaffPortalModel({
   );
 
   const loadProformaInvoices = async (page = 1, q?: string) => {
+    const query = q !== undefined ? q : proformaInvoiceQueryCommitted;
+    const snapshotKey = financeSnapshotKey('finance:proforma_invoices', query);
+    let hasLocal = page === 1 && proformaInvoiceItems.length > 0;
+    if (page === 1 && !hasLocal) {
+      hasLocal = await hydrateFinanceListFromDisk<ProformaInvoiceListItem>(snapshotKey, (snapshot, networkAt) => {
+        setProformaInvoiceItems(snapshot.items);
+        setProformaInvoicePage(snapshot.page);
+        setProformaInvoiceHasMore(snapshot.hasMore);
+        setProformaInvoiceQueryCommitted(snapshot.query);
+        setProformaInvoicesUpdatedAt(formatShortTime(networkAt));
+      });
+    }
     setModuleLoading(true);
     setModuleError(null);
-    const query = q !== undefined ? q : proformaInvoiceQueryCommitted;
     if (page === 1) {
       setProformaInvoiceQueryCommitted(query);
     }
@@ -1157,7 +1365,19 @@ export function useStaffPortalModel({
       setProformaInvoicePage(res.data.pagination.current_page);
       setProformaInvoiceHasMore(res.data.pagination.has_more);
       setProformaInvoicesUpdatedAt(formatNow());
+      if (page === 1 && portalUserId !== '') {
+        void persistPortalSnapshot(portalUserId, snapshotKey, {
+          items: res.data.items,
+          page: res.data.pagination.current_page,
+          hasMore: res.data.pagination.has_more,
+          query,
+        }).catch(() => {});
+      }
     } catch (error) {
+      if (page === 1 && (hasLocal || proformaInvoiceItems.length > 0)) {
+        setModuleError(null);
+        return;
+      }
       setModuleError(error instanceof Error ? error.message : 'Failed to load proforma invoices.');
     } finally {
       setModuleLoading(false);
@@ -1181,9 +1401,20 @@ export function useStaffPortalModel({
   );
 
   const loadPayments = async (page = 1, q?: string) => {
+    const query = q !== undefined ? q : paymentQueryCommitted;
+    const snapshotKey = financeSnapshotKey('finance:customer_payments', query);
+    let hasLocal = page === 1 && paymentItems.length > 0;
+    if (page === 1 && !hasLocal) {
+      hasLocal = await hydrateFinanceListFromDisk<PaymentListItem>(snapshotKey, (snapshot, networkAt) => {
+        setPaymentItems(snapshot.items);
+        setPaymentPage(snapshot.page);
+        setPaymentHasMore(snapshot.hasMore);
+        setPaymentQueryCommitted(snapshot.query);
+        setPaymentsUpdatedAt(formatShortTime(networkAt));
+      });
+    }
     setModuleLoading(true);
     setModuleError(null);
-    const query = q !== undefined ? q : paymentQueryCommitted;
     if (page === 1) {
       setPaymentQueryCommitted(query);
     }
@@ -1193,7 +1424,19 @@ export function useStaffPortalModel({
       setPaymentPage(res.data.pagination.current_page);
       setPaymentHasMore(res.data.pagination.has_more);
       setPaymentsUpdatedAt(formatNow());
+      if (page === 1 && portalUserId !== '') {
+        void persistPortalSnapshot(portalUserId, snapshotKey, {
+          items: res.data.items,
+          page: res.data.pagination.current_page,
+          hasMore: res.data.pagination.has_more,
+          query,
+        }).catch(() => {});
+      }
     } catch (error) {
+      if (page === 1 && (hasLocal || paymentItems.length > 0)) {
+        setModuleError(null);
+        return;
+      }
       setModuleError(error instanceof Error ? error.message : 'Failed to load payments.');
     } finally {
       setModuleLoading(false);
@@ -1217,9 +1460,20 @@ export function useStaffPortalModel({
   );
 
   const loadPaymentVouchers = async (page = 1, q?: string) => {
+    const query = q !== undefined ? q : paymentVoucherQueryCommitted;
+    const snapshotKey = financeSnapshotKey('finance:payment_vouchers', query);
+    let hasLocal = page === 1 && paymentVoucherItems.length > 0;
+    if (page === 1 && !hasLocal) {
+      hasLocal = await hydrateFinanceListFromDisk<PaymentVoucherListItem>(snapshotKey, (snapshot, networkAt) => {
+        setPaymentVoucherItems(snapshot.items);
+        setPaymentVoucherPage(snapshot.page);
+        setPaymentVoucherHasMore(snapshot.hasMore);
+        setPaymentVoucherQueryCommitted(snapshot.query);
+        setPaymentVouchersUpdatedAt(formatShortTime(networkAt));
+      });
+    }
     setModuleLoading(true);
     setModuleError(null);
-    const query = q !== undefined ? q : paymentVoucherQueryCommitted;
     if (page === 1) {
       setPaymentVoucherQueryCommitted(query);
     }
@@ -1229,7 +1483,19 @@ export function useStaffPortalModel({
       setPaymentVoucherPage(res.data.pagination.current_page);
       setPaymentVoucherHasMore(res.data.pagination.has_more);
       setPaymentVouchersUpdatedAt(formatNow());
+      if (page === 1 && portalUserId !== '') {
+        void persistPortalSnapshot(portalUserId, snapshotKey, {
+          items: res.data.items,
+          page: res.data.pagination.current_page,
+          hasMore: res.data.pagination.has_more,
+          query,
+        }).catch(() => {});
+      }
     } catch (error) {
+      if (page === 1 && (hasLocal || paymentVoucherItems.length > 0)) {
+        setModuleError(null);
+        return;
+      }
       setModuleError(error instanceof Error ? error.message : 'Failed to load payment vouchers.');
     } finally {
       setModuleLoading(false);
@@ -1253,9 +1519,20 @@ export function useStaffPortalModel({
   );
 
   const loadSupplierInvoices = async (page = 1, q?: string) => {
+    const query = q !== undefined ? q : supplierInvoiceQueryCommitted;
+    const snapshotKey = financeSnapshotKey('finance:supplier_invoices', query);
+    let hasLocal = page === 1 && supplierInvoiceItems.length > 0;
+    if (page === 1 && !hasLocal) {
+      hasLocal = await hydrateFinanceListFromDisk<SupplierInvoiceListItem>(snapshotKey, (snapshot, networkAt) => {
+        setSupplierInvoiceItems(snapshot.items);
+        setSupplierInvoicePage(snapshot.page);
+        setSupplierInvoiceHasMore(snapshot.hasMore);
+        setSupplierInvoiceQueryCommitted(snapshot.query);
+        setSupplierInvoicesUpdatedAt(formatShortTime(networkAt));
+      });
+    }
     setModuleLoading(true);
     setModuleError(null);
-    const query = q !== undefined ? q : supplierInvoiceQueryCommitted;
     if (page === 1) {
       setSupplierInvoiceQueryCommitted(query);
     }
@@ -1265,7 +1542,19 @@ export function useStaffPortalModel({
       setSupplierInvoicePage(res.data.pagination.current_page);
       setSupplierInvoiceHasMore(res.data.pagination.has_more);
       setSupplierInvoicesUpdatedAt(formatNow());
+      if (page === 1 && portalUserId !== '') {
+        void persistPortalSnapshot(portalUserId, snapshotKey, {
+          items: res.data.items,
+          page: res.data.pagination.current_page,
+          hasMore: res.data.pagination.has_more,
+          query,
+        }).catch(() => {});
+      }
     } catch (error) {
+      if (page === 1 && (hasLocal || supplierInvoiceItems.length > 0)) {
+        setModuleError(null);
+        return;
+      }
       setModuleError(error instanceof Error ? error.message : 'Failed to load supplier invoices.');
     } finally {
       setModuleLoading(false);
@@ -2515,6 +2804,20 @@ export function useStaffPortalModel({
 
   const fetchLogisticsDocuments = async (page: number, basePath: string, q: string) => {
     const seq = ++logisticsListFetchSeqRef.current;
+    const snapshotKey = logisticsSnapshotKey(basePath, page === 1 ? q : logisticsQueryCommitted);
+    let hasLocal = page === 1 && logisticsItems.length > 0;
+    if (page === 1 && !hasLocal && portalUserId !== '') {
+      const envelope = await loadPortalSnapshot<LogisticsListSnapshot>(portalUserId, snapshotKey);
+      if (envelope && envelope.data.basePath === basePath) {
+        setLogisticsItems(envelope.data.items);
+        setLogisticsPage(envelope.data.page);
+        setLogisticsHasMore(envelope.data.hasMore);
+        setLogisticsTotal(envelope.data.total);
+        setLogisticsQueryCommitted(envelope.data.query);
+        setLogisticsUpdatedAt(formatShortTime(envelope.networkAt));
+        hasLocal = envelope.data.items.length > 0;
+      }
+    }
     setModuleLoading(true);
     setModuleError(null);
     if (page === 1) {
@@ -2530,8 +2833,22 @@ export function useStaffPortalModel({
       setLogisticsHasMore(res.data.pagination.has_more);
       setLogisticsTotal(res.data.pagination.total);
       setLogisticsUpdatedAt(formatNow());
+      if (page === 1 && portalUserId !== '') {
+        void persistPortalSnapshot(portalUserId, snapshotKey, {
+          items: res.data.items,
+          page: res.data.pagination.current_page,
+          hasMore: res.data.pagination.has_more,
+          total: res.data.pagination.total,
+          basePath,
+          query: q,
+        }).catch(() => {});
+      }
     } catch (error) {
       if (seq !== logisticsListFetchSeqRef.current) {
+        return;
+      }
+      if (page === 1 && (hasLocal || logisticsItems.length > 0)) {
+        setModuleError(null);
         return;
       }
       setLogisticsTotal(0);
@@ -2661,7 +2978,7 @@ export function useStaffPortalModel({
     if (!token) {
       const prevUserId = String(user?.id ?? '');
       if (prevUserId !== '') {
-        void clearMobileSummaryCache(prevUserId);
+        void clearAllPortalSnapshotsForUser(prevUserId);
       }
       lastMobileSummaryNetworkAtRef.current = 0;
       lastApprovalsNetworkAtRef.current = 0;
@@ -2749,6 +3066,9 @@ export function useStaffPortalModel({
     id: string,
     status: 'Approved' | 'Rejected',
   ): Promise<{ ok: true } | { ok: false; error: string }> => {
+    if (isOffline) {
+      return { ok: false, error: 'Connect to the internet to approve or reject items.' };
+    }
     try {
       const note = approvalNotes[id]?.trim();
       if (status === 'Approved') {
@@ -3190,6 +3510,10 @@ export function useStaffPortalModel({
   }, [activeTab, token, loadPayslips]);
 
   const onPullRefresh = async () => {
+    if (isOffline) {
+      onPortalNotify?.(OFFLINE_REFRESH_MESSAGE, 'info');
+      return;
+    }
     setRefreshing(true);
     try {
       if (activeTab === 'dashboard') {

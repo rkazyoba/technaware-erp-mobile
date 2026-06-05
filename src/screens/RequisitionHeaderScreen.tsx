@@ -12,7 +12,7 @@ import { outfit } from '../constants/typography';
 import { useStaffPortal } from '../context/StaffPortalContext';
 import { useModulesTabScrollInsets } from '../hooks/useModulesTabScrollInsets';
 import type { ModulesStackParamList } from '../navigation/moduleStackTypes';
-import { canCrudOrLegacy } from '../utils/crudPermissions';
+import { canCreateCrud } from '../utils/crudPermissions';
 import { portalModuleAccessGate } from '../utils/portalModuleAccess';
 import { styles } from '../styles/appStyles';
 
@@ -22,10 +22,7 @@ export function RequisitionHeaderScreen() {
   const { scrollBottomPadding, keyboardVerticalOffset } = useModulesTabScrollInsets();
 
   const moduleGate = useMemo(() => portalModuleAccessGate(portal, 'Requisitions'), [portal]);
-  const canCreate = useMemo(
-    () => canCrudOrLegacy(portal, 'requisitions', 'create', ['erp.user.requisitions']),
-    [portal],
-  );
+  const canCreate = useMemo(() => canCreateCrud(portal, 'requisitions'), [portal]);
 
   const [loading, setLoading] = useState(true);
   const [requisitionNo, setRequisitionNo] = useState('');

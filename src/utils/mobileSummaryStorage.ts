@@ -1,31 +1,31 @@
-import * as SecureStore from 'expo-secure-store';
+import {
+  clearPortalSnapshot,
+  loadPortalSnapshot,
+  savePortalSnapshot,
+  type PortalSnapshotEnvelope,
+} from './portalSnapshotStorage';
 
-const PREFIX = 'erp_mobile_summary_secure_v1:';
-
-function storageKey(userId: string): string {
-  const id = userId.trim();
-  if (id === '') {
-    return `${PREFIX}anonymous`;
-  }
-  return `${PREFIX}${id}`;
-}
+const SNAPSHOT_KEY = 'mobile_summary';
 
 export async function loadMobileSummaryCache(userId: string): Promise<string | null> {
-  try {
-    return await SecureStore.getItemAsync(storageKey(userId));
-  } catch {
+  const envelope = await loadPortalSnapshot<unknown>(userId, SNAPSHOT_KEY);
+  if (!envelope) {
     return null;
   }
+  return JSON.stringify(envelope);
 }
 
 export async function saveMobileSummaryCache(userId: string, json: string): Promise<void> {
-  await SecureStore.setItemAsync(storageKey(userId), json);
+  try {
+    const parsed = JSON.parse(json) as PortalSnapshotEnvelope<unknown>;
+    if (parsed && typeof parsed.networkAt === 'number' && parsed.data !== undefined) {
+      await savePortalSnapshot(userId, SNAPSHOT_KEY, parsed);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 export async function clearMobileSummaryCache(userId: string): Promise<void> {
-  try {
-    await SecureStore.deleteItemAsync(storageKey(userId));
-  } catch {
-    /* missing */
-  }
+  await clearPortalSnapshot(userId, SNAPSHOT_KEY);
 }

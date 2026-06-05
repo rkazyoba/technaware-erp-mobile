@@ -22,6 +22,7 @@ import { useStaffPortal } from '../context/StaffPortalContext';
 import type { ModulesStackParamList } from '../navigation/moduleStackTypes';
 import { portalModuleAccessGate } from '../utils/portalModuleAccess';
 import { approvalKindForTypeLabel, approvalTypeChipsFromSummary } from '../utils/approvalFilters';
+import { canPerformWrite } from '../utils/writeGate';
 
 type PendingDecision = { id: string; status: 'Approved' | 'Rejected' };
 
@@ -48,6 +49,7 @@ export function ApprovalsScreen() {
     refreshing,
     onPullRefresh,
     portal,
+    isOffline,
   } = sp;
 
   const approvalsAccessGate = useMemo(() => portalModuleAccessGate(portal, 'Approvals'), [portal]);
@@ -107,6 +109,9 @@ export function ApprovalsScreen() {
 
   const confirmAction = async () => {
     if (!pending || confirming) {
+      return;
+    }
+    if (!canPerformWrite(isOffline, (message) => onPortalNotify?.(message, 'info'))) {
       return;
     }
     setConfirming(true);
@@ -368,7 +373,13 @@ export function ApprovalsScreen() {
                 <Text style={{ ...outfit('medium', 13), color: colors.textPrimary }}>View</Text>
               </Pressable>
               <Pressable
-                onPress={() => setPending({ id: item.id, status: 'Approved' })}
+                onPress={() => {
+                  if (!canPerformWrite(isOffline, (message) => onPortalNotify?.(message, 'info'))) {
+                    return;
+                  }
+                  setPending({ id: item.id, status: 'Approved' });
+                }}
+                disabled={isOffline}
                 style={{
                   paddingVertical: 10,
                   paddingHorizontal: 14,
@@ -378,13 +389,20 @@ export function ApprovalsScreen() {
                   marginBottom: 8,
                   flexDirection: 'row',
                   alignItems: 'center',
+                  opacity: isOffline ? 0.45 : 1,
                 }}
               >
                 <Ionicons name="checkmark-circle-outline" size={16} color={colors.statusApprovedText} style={{ marginRight: 6 }} />
                 <Text style={{ ...outfit('medium', 13), color: colors.statusApprovedText }}>Approve</Text>
               </Pressable>
               <Pressable
-                onPress={() => setPending({ id: item.id, status: 'Rejected' })}
+                onPress={() => {
+                  if (!canPerformWrite(isOffline, (message) => onPortalNotify?.(message, 'info'))) {
+                    return;
+                  }
+                  setPending({ id: item.id, status: 'Rejected' });
+                }}
+                disabled={isOffline}
                 style={{
                   paddingVertical: 10,
                   paddingHorizontal: 14,
@@ -393,6 +411,7 @@ export function ApprovalsScreen() {
                   marginBottom: 8,
                   flexDirection: 'row',
                   alignItems: 'center',
+                  opacity: isOffline ? 0.45 : 1,
                 }}
               >
                 <Ionicons name="close-circle-outline" size={16} color={colors.statusRejectedText} style={{ marginRight: 6 }} />

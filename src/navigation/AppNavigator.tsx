@@ -2,7 +2,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import { useState } from 'react';
+import { View } from 'react-native';
 import { ErpTabBar } from '../components/ErpTabBar';
+import { OfflineBanner } from '../components/OfflineBanner';
 import { QuickCreateSheet } from '../components/QuickCreateSheet';
 import { StaffPortalProvider, type PortalToastType } from '../context/StaffPortalContext';
 import type { ModulesStackParamList } from './moduleStackTypes';
@@ -12,6 +14,7 @@ import { ModuleListScreen } from '../screens/ModuleListScreen';
 import { ModuleWorkspaceScreen } from '../screens/ModuleWorkspaceScreen';
 import { ModulesScreen } from '../screens/ModulesScreen';
 import { PayslipScreen } from '../screens/PayslipScreen';
+import { AboutScreen } from '../screens/AboutScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { RecordDetailScreen } from '../screens/RecordDetailScreen';
 import { HospitalityDetailScreen } from '../screens/HospitalityDetailScreen';
@@ -55,6 +58,7 @@ function ModulesNavigator() {
       <ModulesStack.Screen name="ModuleList" component={ModuleListScreen} />
       <ModulesStack.Screen name="ModuleWorkspace" component={ModuleWorkspaceScreen} />
       <ModulesStack.Screen name="Profile" component={ProfileScreen} />
+      <ModulesStack.Screen name="About" component={AboutScreen} />
       <ModulesStack.Screen name="RecordDetail" component={RecordDetailScreen} />
       <ModulesStack.Screen name="HospitalityDetail" component={HospitalityDetailScreen} />
       <ModulesStack.Screen name="StoreMovementHeader" component={StoreMovementHeaderScreen} />
@@ -91,18 +95,21 @@ function SignedInTabs() {
   const [fabOpen, setFabOpen] = useState(false);
 
   return (
-    <>
-      <Tab.Navigator
-        screenOptions={{ headerShown: false }}
-        tabBar={(props) => <ErpTabBar {...props} onFabPress={() => setFabOpen(true)} />}
-      >
-        <Tab.Screen name="Home" component={HomeScreen} />
-        <Tab.Screen name="Modules" component={ModulesNavigator} />
-        <Tab.Screen name="Payslip" component={PayslipScreen} />
-        <Tab.Screen name="Reports" component={ReportsScreen} />
-      </Tab.Navigator>
+    <View style={{ flex: 1 }}>
+      <OfflineBanner />
+      <View style={{ flex: 1 }}>
+        <Tab.Navigator
+          screenOptions={{ headerShown: false }}
+          tabBar={(props) => <ErpTabBar {...props} onFabPress={() => setFabOpen(true)} />}
+        >
+          <Tab.Screen name="Home" component={HomeScreen} />
+          <Tab.Screen name="Modules" component={ModulesNavigator} />
+          <Tab.Screen name="Payslip" component={PayslipScreen} />
+          <Tab.Screen name="Reports" component={ReportsScreen} />
+        </Tab.Navigator>
+      </View>
       <QuickCreateSheet visible={fabOpen} onClose={() => setFabOpen(false)} />
-    </>
+    </View>
   );
 }
 

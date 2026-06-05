@@ -51,6 +51,7 @@ export function HomeScreen() {
     approvalItems,
     refreshing,
     onPullRefresh,
+    isOffline,
   } = sp;
 
   useFocusEffect(
@@ -185,6 +186,7 @@ export function HomeScreen() {
             source={{ uri: logoUri }}
             style={{ width: '100%', height: 52, maxWidth: 220, alignSelf: 'flex-start' }}
             resizeMode="contain"
+            accessibilityLabel="Technaware logo"
           />
         </View>
         <PortalHeaderActions />
@@ -200,9 +202,13 @@ export function HomeScreen() {
           <Text style={{ ...outfit('regular', 12), color: 'rgba(255,255,255,0.55)', marginTop: 6 }}>{roleLine}</Text>
           {mobileSummaryUpdatedAt || approvalsUpdatedAt ? (
             <Text style={{ ...outfit('regular', 11), color: 'rgba(255,255,255,0.45)', marginTop: 10 }}>
-              Last sync
+              {isOffline ? 'Offline · showing saved data' : 'Last sync'}
               {mobileSummaryUpdatedAt ? ` · dashboard ${mobileSummaryUpdatedAt}` : ''}
               {approvalsUpdatedAt ? ` · approvals ${approvalsUpdatedAt}` : ''}
+            </Text>
+          ) : isOffline ? (
+            <Text style={{ ...outfit('regular', 11), color: 'rgba(255,255,255,0.45)', marginTop: 10 }}>
+              Offline · connect to refresh dashboard
             </Text>
           ) : null}
         </View>

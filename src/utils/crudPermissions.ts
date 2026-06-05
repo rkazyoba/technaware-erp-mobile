@@ -51,6 +51,28 @@ export function canCrudOrLegacy(
   return canCrud(portal, resource, action) || staffPortalHasAnyPermission(portal, legacyPermissions);
 }
 
+/**
+ * Create actions that must match web {@see ErpUiAccess}: only {@code erp.crud.<resource>.create},
+ * not {@code erp.user.*} or section nav (see unit tests for po/non_po/requisitions).
+ */
+export const STRICT_CRUD_CREATE_RESOURCES = new Set<CrudResource>([
+  'requisitions',
+  'po_receipts',
+  'non_po_receipts',
+  'pick_tickets',
+]);
+
+export function canCreateCrud(portal: MobilePortalBootstrap | null | undefined, resource: CrudResource): boolean {
+  if (STRICT_CRUD_CREATE_RESOURCES.has(resource)) {
+    return canCrud(portal, resource, 'create');
+  }
+  const legacy = LOGISTICS_LEGACY[resource];
+  if (legacy) {
+    return canCrudOrLegacy(portal, resource, 'create', legacy);
+  }
+  return canCrud(portal, resource, 'create');
+}
+
 export const LOGISTICS_LEGACY: Record<string, readonly string[]> = {
   po_receipts: ['erp.user.po_receipts'],
   non_po_receipts: ['erp.user.non_po_receipts'],

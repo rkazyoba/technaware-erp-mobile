@@ -142,4 +142,5 @@ export type ModulesStackParamList = {
     moduleRoute: string;
     initialTab?: 'overview' | 'details' | 'header' | 'lines' | 'documents';
   };
+  About: undefined;
 };

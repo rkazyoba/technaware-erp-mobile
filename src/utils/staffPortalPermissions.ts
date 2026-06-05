@@ -23,8 +23,8 @@ export function staffPortalHasAnyPermission(
  * Mirrors {@see StaffLogisticsController} guards.
  */
 export const STORE_MOVEMENT_KIND_PERMISSIONS: Record<string, readonly string[]> = {
-  k2s: ['erp.user.kitchen_to_store'],
-  s2k: ['erp.user.store_to_kitchen'],
+  k2s: ['erp.user.kitchen_to_store', 'erp.user.store_issues', 'erp.crud.kitchen_to_store.view'],
+  s2k: ['erp.user.store_to_kitchen', 'erp.crud.store_to_kitchen.view'],
   inter_rcpt: ['erp.user.store_receipts', 'erp.approvals.store_receipts'],
   inter_issue: ['erp.user.store_issues', 'erp.approvals.store_issues'],
 };

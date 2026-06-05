@@ -1,4 +1,5 @@
 import { createContext, useContext, type ReactNode, useCallback, useEffect, useState } from 'react';
+import { useNetworkStatus } from './NetworkStatusContext';
 import { useStaffPortalModel, type StaffPortalModel, type StaffPortalModelInput } from '../hooks/useStaffPortalModel';
 import { AppTab, MobilePortalBootstrap, RefreshProfileOptions, SignedInUser } from '../types/app';
 
@@ -9,6 +10,8 @@ export type StaffPortalContextValue = StaffPortalModel & {
   setPortalActiveTab: (t: AppTab) => void;
   applyPortalBootstrap: (portal: MobilePortalBootstrap) => void;
   onPortalNotify?: (message: string, type?: PortalToastType) => void;
+  isOffline: boolean;
+  isConnected: boolean;
 };
 
 const StaffPortalContext = createContext<StaffPortalContextValue | null>(null);
@@ -44,6 +47,7 @@ export function StaffPortalProvider({
   onLogout,
   onPortalNotify,
 }: StaffPortalProviderProps) {
+  const { isOffline, isConnected } = useNetworkStatus();
   const [activeTab, setActiveTab] = useState<AppTab>('dashboard');
   const [selectedModule, setSelectedModule] = useState('Approvals');
 
@@ -83,10 +87,12 @@ export function StaffPortalProvider({
     activeTab,
     selectedModule,
     loading,
+    isOffline,
     onSetTab: setActiveTab,
     onRefreshProfile,
     onLogout,
     onOpenAction,
+    onPortalNotify,
   };
 
   const model = useStaffPortalModel(modelInput);
@@ -97,6 +103,8 @@ export function StaffPortalProvider({
     setPortalActiveTab: setActiveTab,
     applyPortalBootstrap: onApplyPortalBootstrap,
     onPortalNotify,
+    isOffline,
+    isConnected,
   };
 
   return <StaffPortalContext.Provider value={value}>{children}</StaffPortalContext.Provider>;

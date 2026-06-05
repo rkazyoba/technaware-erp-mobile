@@ -22,7 +22,7 @@ import { ModuleSearchToolbar } from '../components/ModuleSearchToolbar';
 import { colors } from '../constants/colors';
 import { outfit } from '../constants/typography';
 import { useStaffPortal } from '../context/StaffPortalContext';
-import { canCrud, canCrudOrLegacy, PARTS_MGMT_LEGACY } from '../utils/crudPermissions';
+import { canCreateCrud, canCrud, canCrudOrLegacy, PARTS_MGMT_LEGACY } from '../utils/crudPermissions';
 import {
   hrCatalogDetailKind,
   hrCatalogListLabel,
@@ -177,10 +177,7 @@ export function ModuleListScreen() {
   const sp = useStaffPortal();
   const canCreatePaymentVoucher = useMemo(() => canCrud(sp.portal, 'payment_vouchers', 'create'), [sp.portal]);
   const canCreatePettyCashRequest = canCreatePaymentVoucher;
-  const canCreateRequisition = useMemo(
-    () => canCrudOrLegacy(sp.portal, 'requisitions', 'create', ['erp.user.requisitions']),
-    [sp.portal],
-  );
+  const canCreateRequisition = useMemo(() => canCreateCrud(sp.portal, 'requisitions'), [sp.portal]);
   const canCreatePart = useMemo(() => canCrud(sp.portal, 'parts', 'create'), [sp.portal]);
   const canCreatePartInStore = useMemo(
     () => canCrudOrLegacy(sp.portal, 'parts_in_store', 'create', PARTS_MGMT_LEGACY.parts_in_store),

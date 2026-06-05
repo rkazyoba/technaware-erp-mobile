@@ -13,6 +13,7 @@ import type { ModulesStackParamList } from '../navigation/moduleStackTypes';
 import { leaveProfileScreen } from '../navigation/navigateToProfile';
 import { resolveProfilePhotoUrl, resolveTenantLabels } from '../utils/profileDisplay';
 import { userHasEmployeeProfile } from '../utils/employeeProfile';
+import { canPerformWrite } from '../utils/writeGate';
 import { webErpUrl } from '../utils/webErpUrls';
 
 function DetailRow({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -43,6 +44,7 @@ export function ProfileScreen() {
     onPortalNotify,
     loadMobileSummary,
     loadApprovals,
+    isOffline,
   } = sp;
 
   useFocusEffect(
@@ -154,7 +156,34 @@ export function ProfileScreen() {
         )}
 
         <Pressable
-          onPress={() => void onRefreshProfile()}
+          onPress={() => navigation.navigate('About')}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingVertical: 14,
+            paddingHorizontal: 14,
+            borderRadius: 12,
+            borderWidth: 0.5,
+            borderColor: colors.borderSubtle,
+            backgroundColor: colors.surface,
+            marginBottom: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Ionicons name="information-circle-outline" size={20} color={colors.textSecondary} />
+            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>About</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            if (!canPerformWrite(isOffline, (message) => onPortalNotify?.(message, 'info'))) {
+              return;
+            }
+            void onRefreshProfile();
+          }}
           disabled={loading || tenantBusy}
           style={{
             paddingVertical: 14,
@@ -163,10 +192,16 @@ export function ProfileScreen() {
             borderColor: colors.primaryNavy,
             alignItems: 'center',
             marginBottom: 10,
-            opacity: loading || tenantBusy ? 0.65 : 1,
+            opacity: loading || tenantBusy ? 0.65 : isOffline ? 0.5 : 1,
           }}
         >
-          {loading ? <ActivityIndicator color={colors.primaryNavy} /> : <Text style={{ ...outfit('medium', 14), color: colors.primaryNavy }}>Sync account</Text>}
+          {loading ? (
+            <ActivityIndicator color={colors.primaryNavy} />
+          ) : (
+            <Text style={{ ...outfit('medium', 14), color: colors.primaryNavy }}>
+              {isOffline ? 'Sync account (offline)' : 'Sync account'}
+            </Text>
+          )}
         </Pressable>
         <Pressable
           onPress={() => void onLogout()}

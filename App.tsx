@@ -14,7 +14,13 @@ import { API_BASE_URL, ApiRequestError, login, logout, me, setSessionInvalidHand
 import { Toast, ToastType } from './src/components/Toast';
 import { colors } from './src/constants/colors';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { NetworkStatusProvider } from './src/context/NetworkStatusContext';
 import { LoginScreen } from './src/screens/LoginScreen';
+import {
+  clearPortalBootstrap,
+  loadPortalBootstrap,
+  savePortalBootstrap,
+} from './src/utils/portalBootstrapStorage';
 import {
   clearAuthSession,
   clearRememberedUsername,
@@ -125,11 +131,20 @@ function AppContent() {
 
         if (session?.token) {
           setToken(session.token);
+          let cachedUserId = '';
           try {
             const parsed = JSON.parse(session.userJson) as SignedInUser;
             setUser(parsed);
+            cachedUserId = String(parsed.id ?? '');
           } catch {
             /* ignore corrupt cache */
+          }
+
+          if (cachedUserId !== '') {
+            const cachedPortal = await loadPortalBootstrap(cachedUserId);
+            if (!cancelled && cachedPortal) {
+              setPortal(cachedPortal);
+            }
           }
 
           try {
@@ -139,15 +154,22 @@ function AppContent() {
               setUser(profile.data.user);
               setPortal(profile.data.portal ?? null);
               await persistAuthSession(session.token, JSON.stringify(profile.data.user));
+              if (profile.data.portal) {
+                await savePortalBootstrap(String(profile.data.user.id), profile.data.portal);
+              }
             }
           } catch (err: unknown) {
             if (!cancelled && err instanceof ApiRequestError && (err.httpStatus === 401 || err.httpStatus === 403)) {
               authGenerationRef.current += 1;
+              if (cachedUserId !== '') {
+                await clearPortalBootstrap(cachedUserId);
+              }
               await clearAuthSession();
               setToken('');
               setUser(null);
               setPortal(null);
             }
+            /* Network errors: keep cached user + portal so the shell loads offline. */
           }
         }
       } finally {
@@ -189,6 +211,9 @@ function AppContent() {
       setUser(res.data.user);
       setPortal(res.data.portal ?? null);
       await persistAuthSession(nextToken, JSON.stringify(res.data.user));
+      if (res.data.portal) {
+        await savePortalBootstrap(String(res.data.user.id), res.data.portal);
+      }
       if (rememberMe) {
         await saveRememberedUsername(trimmedUsername);
       } else {
@@ -209,7 +234,10 @@ function AppContent() {
 
   const handleApplyPortalBootstrap = useCallback((nextPortal: MobilePortalBootstrap) => {
     setPortal(nextPortal);
-  }, []);
+    if (user?.id != null) {
+      void savePortalBootstrap(String(user.id), nextPortal);
+    }
+  }, [user?.id]);
 
   const handleRefreshProfile = useCallback(async (options?: RefreshProfileOptions) => {
     if (!token) {
@@ -230,6 +258,9 @@ function AppContent() {
       setUser(res.data.user);
       setPortal(res.data.portal ?? null);
       await persistAuthSession(token, JSON.stringify(res.data.user));
+      if (res.data.portal) {
+        await savePortalBootstrap(String(res.data.user.id), res.data.portal);
+      }
       if (!silent) {
         showToast('Profile updated from server.', 'success');
       }
@@ -252,7 +283,11 @@ function AppContent() {
 
     authGenerationRef.current += 1;
     const revokeToken = token;
+    const userId = String(user?.id ?? '');
 
+    if (userId !== '') {
+      await clearPortalBootstrap(userId);
+    }
     await clearAuthSession();
     setToken('');
     setUser(null);
@@ -264,7 +299,7 @@ function AppContent() {
     void logout(revokeToken).catch(() => {
       /* token already cleared locally; revoke is best-effort */
     });
-  }, [token]);
+  }, [token, user?.id]);
 
   if (hydrating || !fontsLoaded) {
     return null;
@@ -320,7 +355,9 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AppContent />
+      <NetworkStatusProvider>
+        <AppContent />
+      </NetworkStatusProvider>
     </SafeAreaProvider>
   );
 }
