@@ -15,6 +15,8 @@ import type {
 import { getAttendanceToday, postAttendancePunch } from '../api';
 import { StaffFinanceListSection } from '../components/finance/StaffFinanceListSection';
 import { Text } from '../components/AppTypography';
+import { PosReportsModulePanel } from './pos/PosReportsModulePanel';
+import { PosRetailModulePanel } from './pos/PosRetailModulePanel';
 import { WebPortalSurfacePanel } from '../components/WebPortalSurfacePanel';
 import { EmployeeProfileRequiredCard } from '../components/EmployeeProfileRequiredCard';
 import { StatusBadge } from '../components/StatusBadge';
@@ -36,6 +38,7 @@ import { accountingDetailKindForModule, isAccountingApiListModule } from '../uti
 import { moduleRequiresEmployeeProfile, userHasEmployeeProfile } from '../utils/employeeProfile';
 import { moduleListHasItems } from '../utils/moduleListState';
 import { isHospitalityNativeModule } from '../utils/hospitalityPortal';
+import { isPosNativeModule } from '../utils/posPortal';
 import { isPortalModuleRouteAccessible, portalModuleAccessGate } from '../utils/portalModuleAccess';
 import { webPathForPortalSurface } from '../utils/portalWebSurfaces';
 import {
@@ -120,6 +123,9 @@ function hasListFirstUi(moduleRoute: string, portal: ReturnType<typeof useStaffP
   if (isHospitalityNativeModule(moduleRoute)) {
     return true;
   }
+  if (isPosNativeModule(moduleRoute)) {
+    return true;
+  }
   if (webPathForPortalSurface(moduleRoute, portal)) {
     return true;
   }
@@ -154,6 +160,8 @@ function hasListFirstUi(moduleRoute: string, portal: ReturnType<typeof useStaffP
     moduleRoute === 'Contracts' ||
     moduleRoute === 'Quotations' ||
     moduleRoute === 'Front desk' ||
+    moduleRoute === 'Retail POS' ||
+    moduleRoute === 'Retail POS reports' ||
     moduleRoute === 'Housekeeping' ||
     moduleRoute === 'Reservations' ||
     moduleRoute === 'Guests' ||
@@ -612,7 +620,8 @@ export function ModuleListScreen() {
     !isAccountingApiListModule(moduleRoute) &&
     !isFinanceReportMobileModule(moduleRoute) &&
     moduleRoute !== 'Stock by store' &&
-    !isHospitalityNativeModule(moduleRoute);
+    !isHospitalityNativeModule(moduleRoute) &&
+    !isPosNativeModule(moduleRoute);
   const portalSurfaceRow = useMemo(
     () => portal?.surfaces?.find((s) => s.visible && s.route === moduleRoute),
     [portal?.surfaces, moduleRoute],
@@ -3397,6 +3406,14 @@ export function ModuleListScreen() {
               </>
             ) : null}
           </View>
+        ) : null}
+
+        {moduleRoute === 'Retail POS' && token ? (
+          <PosRetailModulePanel token={token} navigation={navigation} />
+        ) : null}
+
+        {moduleRoute === 'Retail POS reports' && token ? (
+          <PosReportsModulePanel token={token} />
         ) : null}
 
         {moduleRoute === 'Housekeeping' ? (

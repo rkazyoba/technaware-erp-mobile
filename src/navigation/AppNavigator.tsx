@@ -44,6 +44,13 @@ import { MasterCatalogEditScreen } from '../screens/MasterCatalogEditScreen';
 import { PartCatalogEditScreen } from '../screens/PartCatalogEditScreen';
 import { PartExpirationFormScreen } from '../screens/PartExpirationFormScreen';
 import { PartsMgmtEditScreen } from '../screens/PartsMgmtEditScreen';
+import { PosOrdersScreen } from '../screens/pos/PosOrdersScreen';
+import { PosRegisterScreen } from '../screens/pos/PosRegisterScreen';
+import { PosHeldScreen } from '../screens/pos/PosHeldScreen';
+import { PosReceiptScreen } from '../screens/pos/PosReceiptScreen';
+import { PosReturnScreen } from '../screens/pos/PosReturnScreen';
+import { PosZReportScreen } from '../screens/pos/PosZReportScreen';
+import { PosShiftScreen } from '../screens/pos/PosShiftScreen';
 import type { MobilePortalBootstrap, RefreshProfileOptions, SignedInUser } from '../types/app';
 
 export type { ModulesStackParamList } from './moduleStackTypes';
@@ -86,6 +93,13 @@ function ModulesNavigator() {
       <ModulesStack.Screen name="PartCatalogEdit" component={PartCatalogEditScreen} />
       <ModulesStack.Screen name="PartsMgmtEdit" component={PartsMgmtEditScreen} />
       <ModulesStack.Screen name="PartExpirationForm" component={PartExpirationFormScreen} />
+      <ModulesStack.Screen name="PosRegister" component={PosRegisterScreen} />
+      <ModulesStack.Screen name="PosHeld" component={PosHeldScreen} />
+      <ModulesStack.Screen name="PosReceipt" component={PosReceiptScreen} />
+      <ModulesStack.Screen name="PosReturn" component={PosReturnScreen} />
+      <ModulesStack.Screen name="PosZReport" component={PosZReportScreen} />
+      <ModulesStack.Screen name="PosShift" component={PosShiftScreen} />
+      <ModulesStack.Screen name="PosOrders" component={PosOrdersScreen} />
       <ModulesStack.Screen name="Approvals" component={ApprovalsScreen} />
     </ModulesStack.Navigator>
   );

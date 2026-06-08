@@ -143,4 +143,11 @@ export type ModulesStackParamList = {
     initialTab?: 'overview' | 'details' | 'header' | 'lines' | 'documents';
   };
   About: undefined;
+  PosRegister: { terminalId: number; terminalName: string; heldOrderId?: number };
+  PosHeld: { terminalId: number; terminalName: string };
+  PosShift: { terminalId: number; terminalName: string; shiftId?: number };
+  PosOrders: { terminalId?: number } | undefined;
+  PosReceipt: { orderId: number; orderNo: string; terminalId: number; terminalName: string };
+  PosReturn: { terminalId?: number } | undefined;
+  PosZReport: { shiftId: number; terminalName?: string };
 };

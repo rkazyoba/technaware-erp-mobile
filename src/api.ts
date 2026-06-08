@@ -2987,6 +2987,73 @@ export type PosTerminalSummary = {
 export type PosPortalSummary = {
   summary: PosSummary;
   terminals: PosTerminalSummary[];
+  open_shifts?: PosOpenShiftSummary[];
+  payment_methods?: Record<string, string>;
+  vat_rate_percent?: number;
+  currency?: string;
+  require_open_shift?: boolean;
+  fiscal_enabled?: boolean;
+  fiscal_tra_mode?: string;
+  fiscal_tra_mode_label?: string;
+  fiscal_driver?: string;
+};
+
+export type PosOpenShiftSummary = {
+  id: number;
+  terminal_id: number;
+  user_id: number;
+  opened_at: string;
+  opening_float: number;
+  status: string;
+  terminal?: { id: number; name: string; code: string };
+};
+
+export type PosOrderLine = {
+  id?: number;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  line_discount?: number;
+  line_total?: number;
+  tax_amount?: number;
+  product_id?: number | null;
+  part_in_store_id?: number | null;
+};
+
+export type PosOrderPayment = {
+  id?: number;
+  payment_method: string;
+  amount: number;
+  reference?: string | null;
+};
+
+export type PosOrderRecord = {
+  id: number;
+  order_no: string;
+  status: string;
+  subtotal?: number;
+  tax_amount?: number;
+  total_amount: number;
+  currency?: string;
+  completed_at?: string | null;
+  lines?: PosOrderLine[];
+  payments?: PosOrderPayment[];
+  terminal?: PosTerminalSummary;
+};
+
+export type PosSaleLineInput = {
+  description: string;
+  quantity: number;
+  unit_price: number;
+  line_discount?: number;
+  product_id?: number | null;
+  part_in_store_id?: number | null;
+};
+
+export type PosSalePaymentInput = {
+  payment_method: string;
+  amount: number;
+  reference?: string | null;
 };
 
 export function getPosStandaloneSummary(token: string) {
@@ -3014,6 +3081,256 @@ export function getPosReportsSummary(
   const suffix = qs.toString() ? `?${qs.toString()}` : '';
   return request<{ summary: PosSummary; reconciliation: PosSummary }>(`/pos/reports/summary${suffix}`, {
     method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getPosOrders(
+  token: string,
+  params?: { source_module?: 'pos_standalone' | 'pos_hospitality'; from?: string; to?: string },
+) {
+  const qs = new URLSearchParams();
+  if (params?.source_module) qs.set('source_module', params.source_module);
+  if (params?.from) qs.set('from', params.from);
+  if (params?.to) qs.set('to', params.to);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<{ orders: PosOrderRecord[] }>(`/pos/orders${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function completePosSale(
+  token: string,
+  payload: {
+    terminal_id: number;
+    source_module: 'pos_standalone' | 'pos_hospitality';
+    lines: PosSaleLineInput[];
+    payments: PosSalePaymentInput[];
+    customer_id?: number | null;
+    order_id?: number | null;
+    discount_type?: 'amount' | 'percent';
+    discount_value?: number;
+    posting_target?: 'direct' | 'folio' | 'walk_in';
+    reservation_id?: number | null;
+    idempotency_key?: string;
+  },
+) {
+  return request<{ order: PosOrderRecord }>('/pos/sales/complete', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function openPosShift(
+  token: string,
+  payload: { terminal_id: number; opening_float?: number },
+) {
+  return request<{ shift: PosOpenShiftSummary }>('/pos/shifts/open', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function closePosShift(
+  token: string,
+  payload: { shift_id: number; closing_cash_count: number; notes?: string },
+) {
+  return request<{ shift: PosOpenShiftSummary & { expected_cash?: number; variance?: number } }>(
+    '/pos/shifts/close',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function processPosReturn(
+  token: string,
+  payload: {
+    order_id: number;
+    lines: Array<{ order_line_id: number; quantity: number }>;
+  },
+) {
+  return request<{ return: { id: number; return_no?: string; refund_amount?: number } }>('/pos/returns', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export type PosCatalogItem = {
+  product_id: number;
+  code: string;
+  name: string;
+  product_type?: string | null;
+  category?: string | null;
+  unit_price: number;
+  stock_qty?: number | null;
+  part_in_store_id?: number | null;
+  in_stock: boolean;
+};
+
+export function searchPosCatalog(
+  token: string,
+  params?: { terminal_id?: number; store_id?: number; q?: string; barcode?: string; limit?: number },
+) {
+  const qs = new URLSearchParams();
+  if (params?.terminal_id) qs.set('terminal_id', String(params.terminal_id));
+  if (params?.store_id) qs.set('store_id', String(params.store_id));
+  if (params?.q) qs.set('q', params.q);
+  if (params?.barcode) qs.set('barcode', params.barcode);
+  if (params?.limit) qs.set('limit', String(params.limit));
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<{ items: PosCatalogItem[] }>(`/pos/catalog/search${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export type PosReceiptFiscalBlock = {
+  status: string;
+  tra_mode?: string;
+  tra_mode_label?: string;
+  receipt_number?: string;
+  verification_code?: string;
+  device_serial?: string;
+  seller_tin?: string;
+  qr_payload?: string;
+  signed_at_display?: string | null;
+  error_message?: string;
+  document_type?: string;
+  driver?: string;
+};
+
+export type PosReceiptPayload = {
+  order: {
+    id: number;
+    order_no: string;
+    currency: string;
+    subtotal: number;
+    discount_amount: number;
+    tax_amount: number;
+    total_amount: number;
+    completed_at_display?: string | null;
+  };
+  company: { name: string; logo_url?: string };
+  terminal?: { code: string; name: string } | null;
+  customer?: { name: string; code?: string } | null;
+  cashier?: { name: string } | null;
+  lines: Array<{
+    description: string;
+    quantity: number;
+    unit_price: number;
+    line_discount: number;
+    line_total: number;
+  }>;
+  payments: Array<{ method: string; method_label: string; amount: number }>;
+  vat_rate_percent?: number;
+  fiscal?: PosReceiptFiscalBlock | null;
+  fiscal_enabled?: boolean;
+  fiscal_tra_mode?: string;
+  fiscal_tra_mode_label?: string;
+};
+
+export function getPosOrderReceipt(token: string, orderId: number) {
+  return request<{ receipt: PosReceiptPayload }>(`/pos/orders/${orderId}/receipt`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function retryPosOrderFiscal(token: string, orderId: number) {
+  return request<{ fiscal: PosReceiptFiscalBlock | null; receipt: PosReceiptPayload }>(
+    `/pos/orders/${orderId}/fiscal/retry`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export type PosZReportPayload = {
+  shift: {
+    id: number;
+    status: string;
+    opened_at?: string | null;
+    closed_at?: string | null;
+    terminal?: string | null;
+    cashier?: string | null;
+    opening_float: number;
+    closing_cash_count?: number | null;
+    expected_cash?: number | null;
+    variance?: number | null;
+  };
+  orders_count: number;
+  gross: number;
+  tax: number;
+  by_payment_method: Record<string, number>;
+  returns_count: number;
+  returns_total: number;
+  currency: string;
+};
+
+export function getPosShiftZReport(token: string, shiftId: number) {
+  return request<{ z_report: PosZReportPayload }>(`/pos/shifts/${shiftId}/z-report`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export type PosHeldOrder = {
+  id: number;
+  order_no: string;
+  held_label?: string | null;
+  held_at?: string | null;
+  total_amount: number;
+  customer_id?: number | null;
+  discount_type?: string | null;
+  discount_value?: number;
+  lines: Array<{
+    id: number;
+    description: string;
+    quantity: number;
+    unit_price: number;
+    line_discount?: number;
+    product_id?: number | null;
+    part_in_store_id?: number | null;
+  }>;
+};
+
+export function getPosHeldOrders(token: string, terminalId: number) {
+  return request<{ orders: PosHeldOrder[] }>(`/pos/orders/held?terminal_id=${terminalId}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function holdPosOrder(
+  token: string,
+  payload: {
+    terminal_id: number;
+    order_id?: number | null;
+    customer_id?: number | null;
+    held_label?: string | null;
+    discount_type?: 'amount' | 'percent';
+    discount_value?: number;
+    lines: PosSaleLineInput[];
+  },
+) {
+  return request<{ order: PosHeldOrder }>('/pos/orders/hold', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function voidPosOrder(token: string, orderId: number) {
+  return request<{ message: string }>(`/pos/orders/${orderId}/void`, {
+    method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   });
 }

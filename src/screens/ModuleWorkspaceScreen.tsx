@@ -12,6 +12,7 @@ import type { ModulesStackParamList } from '../navigation/moduleStackTypes';
 import { isAccountingApiListModule } from '../utils/accountingPortal';
 import { isFinanceReportMobileModule } from '../utils/financeReportPortal';
 import { isHospitalityNativeModule } from '../utils/hospitalityPortal';
+import { isPosNativeModule } from '../utils/posPortal';
 import { portalModuleAccessGate } from '../utils/portalModuleAccess';
 import { webPathForPortalSurface } from '../utils/portalWebSurfaces';
 import { ModuleLegacyPanel } from './module/ModuleLegacyPanel';
@@ -30,7 +31,8 @@ export function ModuleWorkspaceScreen() {
     !isAccountingApiListModule(routeModule) &&
     !isFinanceReportMobileModule(routeModule) &&
     routeModule !== 'Stock by store' &&
-    !isHospitalityNativeModule(routeModule);
+    !isHospitalityNativeModule(routeModule) &&
+    !isPosNativeModule(routeModule);
   const portalSurfaceRow = useMemo(
     () => portal?.surfaces?.find((s) => s.visible && s.route === routeModule),
     [portal?.surfaces, routeModule],

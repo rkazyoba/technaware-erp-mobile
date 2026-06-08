@@ -4,6 +4,7 @@ import { isLogisticsModule } from '../hooks/useStaffPortalModel';
 import { isAccountingApiListModule } from './accountingPortal';
 import { isFinanceReportMobileModule } from './financeReportPortal';
 import { isHospitalityNativeModule } from './hospitalityPortal';
+import { isPosNativeModule } from './posPortal';
 import { isOperationalReportMobileModule } from './operationalReportPortal';
 import { webPathForPortalSurface } from './portalWebSurfaces';
 
@@ -15,7 +16,7 @@ export function moduleListHasItems(moduleRoute: string, sp: StaffPortalModel): b
   if (isAccountingApiListModule(moduleRoute)) {
     return sp.accountingListRoute === moduleRoute && sp.accountingListItems.length > 0;
   }
-  if (webPathForPortalSurface(moduleRoute, sp.portal) && moduleRoute !== 'Stock by store' && !isHospitalityNativeModule(moduleRoute)) {
+  if (webPathForPortalSurface(moduleRoute, sp.portal) && moduleRoute !== 'Stock by store' && !isHospitalityNativeModule(moduleRoute) && !isPosNativeModule(moduleRoute)) {
     return true;
   }
   if (isHrCatalogRoute(moduleRoute)) {
@@ -110,6 +111,10 @@ export function moduleListHasItems(moduleRoute: string, sp: StaffPortalModel): b
       return (sp.hospitalityChannelManager?.accounts.length ?? 0) > 0;
     case 'Hospitality reports':
       return sp.hospitalityReports !== null;
+    case 'Retail POS':
+      return true;
+    case 'Retail POS reports':
+      return true;
     case 'Approvals':
       return sp.approvalItems.length > 0;
     default:

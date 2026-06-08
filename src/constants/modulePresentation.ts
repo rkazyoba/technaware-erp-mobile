@@ -230,4 +230,5 @@ export const CATEGORY_LABELS: Record<string, string> = {
   workflow: 'Workflow & comms',
   uncategorised: 'Modules',
   crm_sales: 'CRM & sales',
+  pos: 'Point of sale',
 };
