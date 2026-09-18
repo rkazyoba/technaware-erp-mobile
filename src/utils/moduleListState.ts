@@ -59,6 +59,14 @@ export function moduleListHasItems(moduleRoute: string, sp: StaffPortalModel): b
       return sp.crmContractItems.length > 0;
     case 'Quotations':
       return sp.crmQuotationItems.length > 0;
+    case 'Clients':
+      return sp.tradingClientItems.length > 0;
+    case 'Client requests':
+      return sp.tradingClientRequestItems.length > 0;
+    case 'Client quotations':
+      return sp.tradingClientQuotationItems.length > 0;
+    case 'Sales orders':
+      return sp.tradingSalesOrderItems.length > 0;
     case 'Suppliers':
       return sp.supplierItems.length > 0;
     case 'Units':

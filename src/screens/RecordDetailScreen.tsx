@@ -38,6 +38,7 @@ import {
 } from '../components/finance/FinanceDetailPresentation';
 import { StaffFinanceApprovalPanel } from '../components/finance/StaffFinanceApprovalPanel';
 import { StaffFinanceReadOnlyField } from '../components/finance/StaffFinanceReadOnlyField';
+import { MasterDataDetailPresentation } from '../components/MasterDataDetailPresentation';
 import { WebPortalSurfacePanel } from '../components/WebPortalSurfacePanel';
 import { StatusBadge } from '../components/StatusBadge';
 import { TopBar, TopBarIconButton } from '../components/TopBar';
@@ -89,6 +90,9 @@ function detailTabDefs(kind: RecordDetailParams['detailKind']): { id: string; la
     case 'supplier_quotation':
     case 'approval':
     case 'crm_quotation':
+    case 'trading_client_request':
+    case 'trading_client_quotation':
+    case 'trading_sales_order':
       return [
         { id: TAB_OVERVIEW, label: 'Overview' },
         { id: TAB_LINES, label: 'Lines' },
@@ -223,6 +227,14 @@ function hasLoadedBody(kind: RecordDetailParams['detailKind'], sp: ReturnType<ty
       return Boolean(params.attendancePreview);
     case 'crm_customer':
       return Boolean(sp.crmCustomerDetail);
+    case 'trading_client':
+      return Boolean(sp.tradingClientDetail);
+    case 'trading_client_request':
+      return Boolean(sp.tradingClientRequestDetail);
+    case 'trading_client_quotation':
+      return Boolean(sp.tradingClientQuotationDetail);
+    case 'trading_sales_order':
+      return Boolean(sp.tradingSalesOrderDetail);
     case 'supplier':
       return Boolean(sp.supplierDetail);
     case 'master_unit':
@@ -346,6 +358,10 @@ export function RecordDetailScreen() {
     loadCrmCustomerDetail,
     loadCrmContractDetail,
     loadCrmQuotationDetail,
+    loadTradingClientDetail,
+    loadTradingClientRequestDetail,
+    loadTradingClientQuotationDetail,
+    loadTradingSalesOrderDetail,
     loadSupplierDetail,
     loadUnitDetail,
     loadCategoryDetail,
@@ -384,6 +400,10 @@ export function RecordDetailScreen() {
     crmCustomerDetail,
     crmContractDetail,
     crmQuotationDetail,
+    tradingClientDetail,
+    tradingClientRequestDetail,
+    tradingClientQuotationDetail,
+    tradingSalesOrderDetail,
     supplierDetail,
     unitDetail,
     categoryDetail,
@@ -408,6 +428,10 @@ export function RecordDetailScreen() {
     setCrmCustomerDetail,
     setCrmContractDetail,
     setCrmQuotationDetail,
+    setTradingClientDetail,
+    setTradingClientRequestDetail,
+    setTradingClientQuotationDetail,
+    setTradingSalesOrderDetail,
     setSupplierDetail,
     setUnitDetail,
     setCategoryDetail,
@@ -485,83 +509,10 @@ export function RecordDetailScreen() {
     useCallback(() => {
       setPortalActiveTab('modules');
       setPortalSelectedModule(moduleRoute);
-      return () => {
-        logisticsDetailFetchSeqRef.current += 1;
-        partDetailFetchSeqRef.current += 1;
-        partInStoreDetailFetchSeqRef.current += 1;
-        partExpirationDetailFetchSeqRef.current += 1;
-        partConversionDetailFetchSeqRef.current += 1;
-        priceCatalogDetailFetchSeqRef.current += 1;
-        if (isHrCatalogRoute(moduleRoute)) {
-          clearHrCatalogDetail(moduleRoute);
-        }
-        setLogisticsDetail(null);
-        setRequisitionDetail(null);
-        setPurchaseOrderDetail(null);
-        setPurchaseRfqDetail(null);
-        setSupplierQuotationDetail(null);
-        setEmployeeDetail(null);
-        setLeaveBalanceDetail(null);
-        setLeaveDetail(null);
-        setPayslipDetail(null);
-        setPartDetail(null);
-        setPartInStoreDetail(null);
-        setPartExpirationDetail(null);
-        setPartConversionDetail(null);
-        setPriceCatalogDetail(null);
-        setProductDetail(null);
-        setSupportDetail(null);
-        setApprovalDetail(null);
-        setCrmCustomerDetail(null);
-        setCrmContractDetail(null);
-        setCrmQuotationDetail(null);
-        setSupplierDetail(null);
-        setUnitDetail(null);
-        setCategoryDetail(null);
-        setBankMasterDetail(null);
-        setBankBranchDetail(null);
-        setMobileOperatorDetail(null);
-        setModuleError(null);
-      };
-    }, [
-      moduleRoute,
-      logisticsDetailFetchSeqRef,
-      partDetailFetchSeqRef,
-      partInStoreDetailFetchSeqRef,
-      partExpirationDetailFetchSeqRef,
-      partConversionDetailFetchSeqRef,
-      priceCatalogDetailFetchSeqRef,
-      productDetailFetchSeqRef,
-      setPortalActiveTab,
-      setPortalSelectedModule,
-      clearHrCatalogDetail,
-      setLogisticsDetail,
-      setRequisitionDetail,
-      setPurchaseOrderDetail,
-      setPurchaseRfqDetail,
-      setSupplierQuotationDetail,
-      setEmployeeDetail,
-      setLeaveBalanceDetail,
-      setLeaveDetail,
-      setPartDetail,
-      setPartInStoreDetail,
-      setPartExpirationDetail,
-      setPartConversionDetail,
-      setPriceCatalogDetail,
-      setProductDetail,
-      setSupportDetail,
-      setApprovalDetail,
-      setCrmCustomerDetail,
-      setCrmContractDetail,
-      setCrmQuotationDetail,
-      setSupplierDetail,
-      setUnitDetail,
-      setCategoryDetail,
-      setBankMasterDetail,
-      setBankBranchDetail,
-      setMobileOperatorDetail,
-      setModuleError,
-    ]),
+      // Do not clear detail state here: cleanup also runs when this callback's deps
+      // change while the screen stays focused, which wiped loaded masters and left
+      // only the web-ERP footer. Clearing + reload belongs in the load useEffect.
+    }, [moduleRoute, setPortalActiveTab, setPortalSelectedModule]),
   );
 
   useEffect(() => {
@@ -591,6 +542,10 @@ export function RecordDetailScreen() {
     setCrmCustomerDetail(null);
     setCrmContractDetail(null);
     setCrmQuotationDetail(null);
+    setTradingClientDetail(null);
+    setTradingClientRequestDetail(null);
+    setTradingClientQuotationDetail(null);
+    setTradingSalesOrderDetail(null);
     setSupplierDetail(null);
     setUnitDetail(null);
     setCategoryDetail(null);
@@ -703,6 +658,22 @@ export function RecordDetailScreen() {
       void loadCrmQuotationDetail(recordId);
       return;
     }
+    if (detailKind === 'trading_client') {
+      void loadTradingClientDetail(recordId);
+      return;
+    }
+    if (detailKind === 'trading_client_request') {
+      void loadTradingClientRequestDetail(recordId);
+      return;
+    }
+    if (detailKind === 'trading_client_quotation') {
+      void loadTradingClientQuotationDetail(recordId);
+      return;
+    }
+    if (detailKind === 'trading_sales_order') {
+      void loadTradingSalesOrderDetail(recordId);
+      return;
+    }
     if (detailKind === 'supplier') {
       void loadSupplierDetail(recordId);
       return;
@@ -768,6 +739,10 @@ export function RecordDetailScreen() {
     loadCrmCustomerDetail,
     loadCrmContractDetail,
     loadCrmQuotationDetail,
+    loadTradingClientDetail,
+    loadTradingClientRequestDetail,
+    loadTradingClientQuotationDetail,
+    loadTradingSalesOrderDetail,
     loadSupplierDetail,
     loadUnitDetail,
     loadCategoryDetail,
@@ -959,6 +934,10 @@ export function RecordDetailScreen() {
     if (detailKind === 'crm_customer' && crmCustomerDetail) return crmCustomerDetail.name || crmCustomerDetail.code;
     if (detailKind === 'crm_contract' && crmContractDetail) return crmContractDetail.ref;
     if (detailKind === 'crm_quotation' && crmQuotationDetail) return crmQuotationDetail.ref;
+    if (detailKind === 'trading_client' && tradingClientDetail) return tradingClientDetail.name || tradingClientDetail.code;
+    if (detailKind === 'trading_client_request' && tradingClientRequestDetail) return tradingClientRequestDetail.ref;
+    if (detailKind === 'trading_client_quotation' && tradingClientQuotationDetail) return tradingClientQuotationDetail.ref;
+    if (detailKind === 'trading_sales_order' && tradingSalesOrderDetail) return tradingSalesOrderDetail.ref;
     if (detailKind === 'supplier' && supplierDetail) return supplierDetail.name || supplierDetail.code;
     if (detailKind === 'master_unit' && unitDetail) return unitDetail.uom;
     if (detailKind === 'master_category' && categoryDetail) return categoryDetail.name;
@@ -999,6 +978,10 @@ export function RecordDetailScreen() {
     else if (detailKind === 'crm_customer') void loadCrmCustomerDetail(recordId);
     else if (detailKind === 'crm_contract') void loadCrmContractDetail(recordId);
     else if (detailKind === 'crm_quotation') void loadCrmQuotationDetail(recordId);
+    else if (detailKind === 'trading_client') void loadTradingClientDetail(recordId);
+    else if (detailKind === 'trading_client_request') void loadTradingClientRequestDetail(recordId);
+    else if (detailKind === 'trading_client_quotation') void loadTradingClientQuotationDetail(recordId);
+    else if (detailKind === 'trading_sales_order') void loadTradingSalesOrderDetail(recordId);
     else if (detailKind === 'supplier') void loadSupplierDetail(recordId);
     else if (detailKind === 'master_unit') void loadUnitDetail(recordId);
     else if (detailKind === 'master_category') void loadCategoryDetail(recordId);
@@ -1059,28 +1042,9 @@ export function RecordDetailScreen() {
   const showHero =
     !detailError &&
     !showLoading &&
-    ((financeDetail.isFinance && financeDetail.loaded) ||
-      (accountingDetail.isAccountingDetail && accountingDetail.loaded) ||
-      (detailKind === 'logistics' && !!logisticsDetail) ||
-      (detailKind === 'requisition' && !!requisitionDetail) ||
-      (detailKind === 'purchase_order' && !!purchaseOrderDetail) ||
-      (detailKind === 'purchase_rfq' && !!purchaseRfqDetail) ||
-      (detailKind === 'supplier_quotation' && !!supplierQuotationDetail) ||
-      (detailKind === 'hr_employee' && !!employeeDetail) ||
-      (detailKind === 'hr_leave_balance' && !!leaveBalanceDetail) ||
-      (hrCatalogRoute && !!hrCatalogDetail) ||
-      (detailKind === 'approval' && !!approvalDetailEffective) ||
-      (detailKind === 'leave' && !!leaveDetail) ||
-      (detailKind === 'payslip' && !!payslipDetail) ||
-      (detailKind === 'crm_customer' && !!crmCustomerDetail) ||
-      (detailKind === 'crm_contract' && !!crmContractDetail) ||
-      (detailKind === 'crm_quotation' && !!crmQuotationDetail) ||
-      (detailKind === 'supplier' && !!supplierDetail) ||
-      (detailKind === 'master_unit' && !!unitDetail) ||
-      (detailKind === 'master_category' && !!categoryDetail) ||
-      (detailKind === 'master_bank' && !!bankMasterDetail) ||
-      (detailKind === 'master_bank_branch' && !!bankBranchDetail) ||
-      (detailKind === 'master_mobile_operator' && !!mobileOperatorDetail));
+    (loadedBody ||
+      (financeDetail.isFinance && financeDetail.loaded) ||
+      (accountingDetail.isAccountingDetail && accountingDetail.loaded));
 
   const heroStatusLabel =
     detailKind === 'logistics' && logisticsDetail
@@ -1148,6 +1112,14 @@ export function RecordDetailScreen() {
                 ? crmContractDetail.status
                 : detailKind === 'crm_quotation' && crmQuotationDetail
                   ? crmQuotationDetail.status_label
+                  : detailKind === 'trading_client' && tradingClientDetail
+                    ? tradingClientDetail.status
+                    : detailKind === 'trading_client_request' && tradingClientRequestDetail
+                      ? tradingClientRequestDetail.status_label
+                      : detailKind === 'trading_client_quotation' && tradingClientQuotationDetail
+                        ? tradingClientQuotationDetail.status_label
+                        : detailKind === 'trading_sales_order' && tradingSalesOrderDetail
+                          ? tradingSalesOrderDetail.status_label
                   : detailKind === 'supplier' && supplierDetail
                     ? supplierDetail.status
                     : detailKind === 'master_unit' && unitDetail
@@ -1325,6 +1297,10 @@ export function RecordDetailScreen() {
             detailKind === 'crm_customer' ||
             detailKind === 'crm_contract' ||
             detailKind === 'crm_quotation' ||
+            detailKind === 'trading_client' ||
+            detailKind === 'trading_client_request' ||
+            detailKind === 'trading_client_quotation' ||
+            detailKind === 'trading_sales_order' ||
             detailKind === 'supplier' ||
             detailKind === 'master_unit' ||
             detailKind === 'master_category' ||
@@ -2027,15 +2003,23 @@ export function RecordDetailScreen() {
         ) : null}
 
         {detailKind === 'product' && productDetail ? (
-          <View style={{ marginTop: 20 }}>
-            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Product</Text>
-            <Text style={[styles.meta, { marginTop: 8 }]}>Code: {productDetail.code}</Text>
-            <Text style={styles.meta}>{productDetail.name}</Text>
-            <Text style={styles.meta}>Status: {productDetail.status}</Text>
-            <Text style={styles.meta}>Type: {productDetail.product_type || '—'}</Text>
-            <Text style={styles.meta}>Category: {productDetail.category || productDetail.category_id || '—'}</Text>
-            <Text style={styles.meta}>Unit: {productDetail.unit || productDetail.unit_id || '—'}</Text>
-          </View>
+          <MasterDataDetailPresentation
+            sections={[
+              {
+                title: 'Product',
+                fields: [
+                  { label: 'Code', value: productDetail.code },
+                  { label: 'Name', value: productDetail.name },
+                  { label: 'Status', value: productDetail.status },
+                  { label: 'Type', value: productDetail.product_type },
+                  { label: 'Category', value: productDetail.category || productDetail.category_id },
+                  { label: 'Unit', value: productDetail.unit || productDetail.unit_id },
+                  { label: 'Linked part', value: productDetail.part_code },
+                  { label: 'Part description', value: productDetail.part_description },
+                ],
+              },
+            ]}
+          />
         ) : null}
 
         {detailKind === 'part' && partDetail ? (
@@ -2082,15 +2066,23 @@ export function RecordDetailScreen() {
         ) : null}
 
         {detailKind === 'part_in_store' && partInStoreDetail ? (
-          <View style={{ marginTop: 20 }}>
-            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Part in store</Text>
-            <Text style={[styles.meta, { marginTop: 8 }]}>Code: {partInStoreDetail.code}</Text>
-            <Text style={styles.meta}>{partInStoreDetail.description}</Text>
-            <Text style={styles.meta}>Store: {partInStoreDetail.store_name}</Text>
-            <Text style={styles.meta}>Qty: {partInStoreDetail.quantity} {partInStoreDetail.unit}</Text>
-            <Text style={styles.meta}>Min / max: {partInStoreDetail.min_qty} / {partInStoreDetail.max_qty}</Text>
-            <Text style={styles.meta}>Status: {partInStoreDetail.status}</Text>
-            <Text style={styles.meta}>Tracking: {partInStoreDetail.tracking_method}</Text>
+          <View style={{ marginTop: 8 }}>
+            <MasterDataDetailPresentation
+              sections={[
+                {
+                  title: 'Part in store',
+                  fields: [
+                    { label: 'Code', value: partInStoreDetail.code },
+                    { label: 'Description', value: partInStoreDetail.description },
+                    { label: 'Store', value: partInStoreDetail.store_name },
+                    { label: 'Quantity', value: `${partInStoreDetail.quantity} ${partInStoreDetail.unit || ''}`.trim() },
+                    { label: 'Min / max', value: `${partInStoreDetail.min_qty} / ${partInStoreDetail.max_qty}` },
+                    { label: 'Status', value: partInStoreDetail.status },
+                    { label: 'Tracking', value: partInStoreDetail.tracking_method },
+                  ],
+                },
+              ]}
+            />
             {partInStoreDetail.catalog_part_id ? (
               <Pressable
                 style={[styles.detailsButton, { marginTop: 12 }]}
@@ -2311,32 +2303,259 @@ export function RecordDetailScreen() {
         ) : null}
 
         {detailKind === 'crm_customer' && crmCustomerDetail ? (
+          <MasterDataDetailPresentation
+            sections={[
+              {
+                title: 'Identity',
+                fields: [
+                  { label: 'Code', value: crmCustomerDetail.code },
+                  { label: 'Name', value: crmCustomerDetail.name },
+                  { label: 'Status', value: crmCustomerDetail.status },
+                ],
+              },
+              {
+                title: 'Contact',
+                fields: [
+                  { label: 'Contact person', value: crmCustomerDetail.contact_person_name },
+                  { label: 'Mobile', value: crmCustomerDetail.contact_person_mobile },
+                  { label: 'Email', value: crmCustomerDetail.contact_person_email },
+                  { label: 'Designation', value: crmCustomerDetail.contact_person_designation },
+                  { label: 'Address', value: crmCustomerDetail.address },
+                ],
+              },
+              {
+                title: 'Tax',
+                fields: [
+                  { label: 'TIN', value: crmCustomerDetail.tin },
+                  { label: 'VRN', value: crmCustomerDetail.vrn },
+                ],
+              },
+            ]}
+          />
+        ) : null}
+
+        {detailKind === 'trading_client' && tradingClientDetail ? (
           <View style={{ marginTop: 8 }}>
-            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Customer</Text>
-            <Text style={[styles.meta, { marginTop: 8 }]}>Code: {crmCustomerDetail.code}</Text>
-            <Text style={styles.meta}>Status: {crmCustomerDetail.status}</Text>
-            <Text style={styles.meta}>Contact: {crmCustomerDetail.contact_person_name || '—'}</Text>
-            <Text style={styles.meta}>Mobile: {crmCustomerDetail.contact_person_mobile || '—'}</Text>
-            <Text style={styles.meta}>Email: {crmCustomerDetail.contact_person_email || '—'}</Text>
-            <Text style={styles.meta}>Designation: {crmCustomerDetail.contact_person_designation || '—'}</Text>
-            <Text style={[styles.moduleBody, { marginTop: 10 }]}>{crmCustomerDetail.address || '—'}</Text>
-            <Text style={styles.meta}>TIN: {crmCustomerDetail.tin || '—'}</Text>
-            <Text style={styles.meta}>VRN: {crmCustomerDetail.vrn || '—'}</Text>
+            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Client</Text>
+            <Text style={[styles.meta, { marginTop: 8 }]}>Code: {tradingClientDetail.code}</Text>
+            <Text style={styles.meta}>Status: {tradingClientDetail.status}</Text>
+            <Text style={styles.meta}>Contact: {tradingClientDetail.contact_person_name || '—'}</Text>
+            <Text style={styles.meta}>Mobile: {tradingClientDetail.contact_person_mobile || '—'}</Text>
+            <Text style={styles.meta}>Email: {tradingClientDetail.contact_person_email || '—'}</Text>
+            <Text style={styles.meta}>Designation: {tradingClientDetail.contact_person_designation || '—'}</Text>
+            <Text style={[styles.moduleBody, { marginTop: 10 }]}>{tradingClientDetail.address || '—'}</Text>
+            <Text style={styles.meta}>TIN: {tradingClientDetail.tin || '—'}</Text>
+            <Text style={styles.meta}>VRN: {tradingClientDetail.vrn || '—'}</Text>
+            {tradingClientDetail.tax_liability_category ? (
+              <Text style={styles.meta}>Tax liability: {tradingClientDetail.tax_liability_category}</Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {detailKind === 'trading_client_request' && tradingClientRequestDetail ? (
+          <View style={{ marginTop: 8 }}>
+            {activeDetailTabs ? <DetailTabBar tabs={activeDetailTabs} active={detailTab} onChange={setDetailTab} /> : null}
+            {(!activeDetailTabs || detailTab === TAB_OVERVIEW) ? (
+              <>
+                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Client request</Text>
+                <Text style={[styles.meta, { marginTop: 8 }]}>Ref: {tradingClientRequestDetail.ref}</Text>
+                <Text style={styles.meta}>Client: {tradingClientRequestDetail.client_name}</Text>
+                <Text style={styles.meta}>Status: {tradingClientRequestDetail.status_label}</Text>
+                <Text style={styles.meta}>Date: {tradingClientRequestDetail.request_date ?? '—'}</Text>
+                <Text style={styles.meta}>Needed by: {tradingClientRequestDetail.needed_by_date ?? '—'}</Text>
+                {tradingClientRequestDetail.title?.trim() ? (
+                  <Text style={[styles.moduleBody, { marginTop: 10 }]}>{tradingClientRequestDetail.title.trim()}</Text>
+                ) : null}
+                {tradingClientRequestDetail.notes?.trim() ? (
+                  <Text style={[styles.moduleBody, { marginTop: 8 }]}>{tradingClientRequestDetail.notes.trim()}</Text>
+                ) : null}
+              </>
+            ) : null}
+            {(!activeDetailTabs || detailTab === TAB_LINES) ? (
+              <>
+                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary, marginTop: activeDetailTabs ? 0 : 12 }}>
+                  Line items
+                </Text>
+                {tradingClientRequestDetail.lines.length === 0 ? (
+                  <Text style={[styles.emptyStateText, { marginTop: 8 }]}>No line items.</Text>
+                ) : (
+                  tradingClientRequestDetail.lines.map((line) => (
+                    <View key={line.id} style={styles.approvalLineRow}>
+                      <Text style={styles.approvalType} numberOfLines={3}>
+                        {line.item}
+                      </Text>
+                      <Text style={[styles.approvalOwner, { marginTop: 4 }]}>
+                        Qty {line.qty}
+                        {line.unit ? ` ${line.unit}` : ''}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </>
+            ) : null}
+          </View>
+        ) : null}
+
+        {detailKind === 'trading_client_quotation' && tradingClientQuotationDetail ? (
+          <View style={{ marginTop: 8 }}>
+            {activeDetailTabs ? <DetailTabBar tabs={activeDetailTabs} active={detailTab} onChange={setDetailTab} /> : null}
+            {(!activeDetailTabs || detailTab === TAB_OVERVIEW) ? (
+              <>
+                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Client quotation</Text>
+                <Text style={[styles.meta, { marginTop: 8 }]}>Ref: {tradingClientQuotationDetail.ref}</Text>
+                <Text style={styles.meta}>Client: {tradingClientQuotationDetail.client_name}</Text>
+                <Text style={styles.meta}>Status: {tradingClientQuotationDetail.status_label}</Text>
+                <Text style={styles.meta}>Date: {tradingClientQuotationDetail.quotation_date ?? '—'}</Text>
+                <Text style={styles.meta}>Valid to: {tradingClientQuotationDetail.valid_date ?? '—'}</Text>
+                {tradingClientQuotationDetail.source_request_ref ? (
+                  <Text style={styles.meta}>Source request: {tradingClientQuotationDetail.source_request_ref}</Text>
+                ) : null}
+                <Text style={[styles.meta, { marginTop: 8 }]}>
+                  Subtotal: {formatQuotationMoney(tradingClientQuotationDetail.total_selling_price)}
+                </Text>
+                <Text style={styles.meta}>VAT: {formatQuotationMoney(tradingClientQuotationDetail.total_vat)}</Text>
+                <Text style={styles.meta}>Total: {formatQuotationMoney(tradingClientQuotationDetail.total_amount)}</Text>
+              </>
+            ) : null}
+            {(!activeDetailTabs || detailTab === TAB_LINES) ? (
+              <>
+                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary, marginTop: activeDetailTabs ? 0 : 12 }}>
+                  Line items
+                </Text>
+                {tradingClientQuotationDetail.lines.length === 0 ? (
+                  <Text style={[styles.emptyStateText, { marginTop: 8 }]}>No line items.</Text>
+                ) : (
+                  tradingClientQuotationDetail.lines.map((line) => (
+                    <View
+                      key={line.id}
+                      style={[
+                        styles.approvalLineRow,
+                        { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+                      ]}
+                    >
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.approvalType} numberOfLines={3}>
+                          {line.item}
+                        </Text>
+                        <Text style={[styles.approvalOwner, { marginTop: 4 }]}>
+                          {line.qty} {line.unit || ''}
+                          {line.unit_price != null ? ` · @${formatQuotationMoney(line.unit_price)}` : ''}
+                        </Text>
+                      </View>
+                      <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, flexShrink: 0 }}>
+                        {formatQuotationMoney(line.line_total)}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </>
+            ) : null}
+          </View>
+        ) : null}
+
+        {detailKind === 'trading_sales_order' && tradingSalesOrderDetail ? (
+          <View style={{ marginTop: 8 }}>
+            {activeDetailTabs ? <DetailTabBar tabs={activeDetailTabs} active={detailTab} onChange={setDetailTab} /> : null}
+            {(!activeDetailTabs || detailTab === TAB_OVERVIEW) ? (
+              <>
+                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Sales order</Text>
+                <Text style={[styles.meta, { marginTop: 8 }]}>Ref: {tradingSalesOrderDetail.ref}</Text>
+                <Text style={styles.meta}>Client: {tradingSalesOrderDetail.client_name}</Text>
+                <Text style={styles.meta}>Status: {tradingSalesOrderDetail.status_label}</Text>
+                <Text style={styles.meta}>Order date: {tradingSalesOrderDetail.order_date ?? '—'}</Text>
+                <Text style={styles.meta}>Delivery: {tradingSalesOrderDetail.delivery_date ?? '—'}</Text>
+                {tradingSalesOrderDetail.quotation_ref ? (
+                  <Text style={styles.meta}>Quotation: {tradingSalesOrderDetail.quotation_ref}</Text>
+                ) : null}
+                <Text style={[styles.meta, { marginTop: 8 }]}>
+                  Subtotal: {formatQuotationMoney(tradingSalesOrderDetail.total_selling_price)}
+                </Text>
+                <Text style={styles.meta}>VAT: {formatQuotationMoney(tradingSalesOrderDetail.total_vat)}</Text>
+                <Text style={styles.meta}>Total: {formatQuotationMoney(tradingSalesOrderDetail.total_amount)}</Text>
+              </>
+            ) : null}
+            {(!activeDetailTabs || detailTab === TAB_LINES) ? (
+              <>
+                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary, marginTop: activeDetailTabs ? 0 : 12 }}>
+                  Line items
+                </Text>
+                {tradingSalesOrderDetail.lines.length === 0 ? (
+                  <Text style={[styles.emptyStateText, { marginTop: 8 }]}>No line items.</Text>
+                ) : (
+                  tradingSalesOrderDetail.lines.map((line) => (
+                    <View
+                      key={line.id}
+                      style={[
+                        styles.approvalLineRow,
+                        { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+                      ]}
+                    >
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.approvalType} numberOfLines={3}>
+                          {line.item}
+                        </Text>
+                        <Text style={[styles.approvalOwner, { marginTop: 4 }]}>
+                          {line.qty} {line.unit || ''}
+                          {line.qty_fulfilled > 0 ? ` · fulfilled ${line.qty_fulfilled}` : ''}
+                          {line.unit_price != null ? ` · @${formatQuotationMoney(line.unit_price)}` : ''}
+                        </Text>
+                      </View>
+                      <Text style={{ ...outfit('medium', 13), color: colors.textPrimary, flexShrink: 0 }}>
+                        {formatQuotationMoney(line.line_total)}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </>
+            ) : null}
           </View>
         ) : null}
 
         {detailKind === 'supplier' && supplierDetail ? (
           <View style={{ marginTop: 8 }}>
-            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Supplier</Text>
-            <Text style={[styles.meta, { marginTop: 8 }]}>Code: {supplierDetail.code || '—'}</Text>
-            <Text style={styles.meta}>Status: {supplierDetail.status}</Text>
-            <Text style={styles.meta}>Phone: {supplierDetail.phone || '—'}</Text>
-            <Text style={styles.meta}>Email: {supplierDetail.email || '—'}</Text>
-            <Text style={[styles.moduleBody, { marginTop: 10 }]}>{supplierDetail.address || '—'}</Text>
-            <Text style={styles.meta}>Payment type: {supplierDetail.payment_type || '—'}</Text>
-            <Text style={styles.meta}>Account: {supplierDetail.account_no || '—'}</Text>
-            <Text style={styles.meta}>Provider: {supplierDetail.account_provider || '—'}</Text>
-            {supplierDetail.currency ? <Text style={styles.meta}>Currency: {supplierDetail.currency}</Text> : null}
+            <MasterDataDetailPresentation
+              sections={[
+                {
+                  title: 'Identity',
+                  fields: [
+                    { label: 'Code', value: supplierDetail.code },
+                    { label: 'Name', value: supplierDetail.name },
+                    { label: 'Status', value: supplierDetail.status },
+                  ],
+                },
+                {
+                  title: 'Contact',
+                  fields: [
+                    { label: 'Phone', value: supplierDetail.phone },
+                    { label: 'Email', value: supplierDetail.email },
+                    { label: 'Address', value: supplierDetail.address },
+                  ],
+                },
+                {
+                  title: 'Payment',
+                  fields: [
+                    { label: 'Payment type', value: supplierDetail.payment_type },
+                    { label: 'Account', value: supplierDetail.account_no },
+                    { label: 'Provider', value: supplierDetail.account_provider },
+                    { label: 'Currency', value: supplierDetail.currency },
+                  ],
+                },
+              ]}
+            />
+            {canCrud(portal, 'suppliers', 'update') ? (
+              <Pressable
+                style={[styles.detailsButton, { marginTop: 8 }]}
+                onPress={() =>
+                  navigation.navigate('MasterCatalogEdit', {
+                    kind: 'supplier',
+                    moduleRoute: 'Suppliers',
+                    recordId,
+                  })
+                }
+              >
+                <Text style={styles.detailsButtonText}>Edit supplier</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
 
@@ -2657,19 +2876,30 @@ export function RecordDetailScreen() {
           <View style={{ marginTop: 8 }}>
             {activeDetailTabs ? <DetailTabBar tabs={activeDetailTabs} active={detailTab} onChange={setDetailTab} /> : null}
             {(!activeDetailTabs || detailTab === TAB_OVERVIEW) ? (
-              <>
-                <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Employee</Text>
-                <Text style={[styles.meta, { marginTop: 8 }]}>Code: {employeeDetail.employee_code}</Text>
-                <Text style={styles.meta}>Name: {employeeDetail.name}</Text>
-                <Text style={styles.meta}>Job title: {employeeDetail.job_title}</Text>
-                <Text style={styles.meta}>Status: {employeeDetail.status || '—'}</Text>
-                <Text style={styles.meta}>Site: {employeeDetail.site_name || '—'}</Text>
-                <Text style={styles.meta}>Store: {employeeDetail.store_name || '—'}</Text>
-                {employeeDetail.department_name ? <Text style={styles.meta}>Department: {employeeDetail.department_name}</Text> : null}
-                {employeeDetail.position_name ? <Text style={styles.meta}>Position: {employeeDetail.position_name}</Text> : null}
-                {employeeDetail.job_grade_name ? <Text style={styles.meta}>Job grade: {employeeDetail.job_grade_name}</Text> : null}
-                {employeeDetail.hire_date ? <Text style={styles.meta}>Hire date: {employeeDetail.hire_date}</Text> : null}
-              </>
+              <MasterDataDetailPresentation
+                sections={[
+                  {
+                    title: 'Employee',
+                    fields: [
+                      { label: 'Code', value: employeeDetail.employee_code },
+                      { label: 'Name', value: employeeDetail.name },
+                      { label: 'Job title', value: employeeDetail.job_title },
+                      { label: 'Status', value: employeeDetail.status },
+                      { label: 'Hire date', value: employeeDetail.hire_date },
+                    ],
+                  },
+                  {
+                    title: 'Assignment',
+                    fields: [
+                      { label: 'Site', value: employeeDetail.site_name },
+                      { label: 'Store', value: employeeDetail.store_name },
+                      { label: 'Department', value: employeeDetail.department_name },
+                      { label: 'Position', value: employeeDetail.position_name },
+                      { label: 'Job grade', value: employeeDetail.job_grade_name },
+                    ],
+                  },
+                ]}
+              />
             ) : null}
           </View>
         ) : null}
@@ -2825,51 +3055,81 @@ export function RecordDetailScreen() {
         ) : null}
 
         {detailKind === 'master_unit' && unitDetail ? (
-          <View style={{ marginTop: 8 }}>
-            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Unit of measurement</Text>
-            <Text style={[styles.meta, { marginTop: 8 }]}>UOM: {unitDetail.uom}</Text>
-            <Text style={styles.meta}>Status: {unitDetail.status}</Text>
-            <Text style={[styles.moduleBody, { marginTop: 10 }]}>{unitDetail.description || '—'}</Text>
-          </View>
+          <MasterDataDetailPresentation
+            sections={[
+              {
+                title: 'Unit of measurement',
+                fields: [
+                  { label: 'UOM', value: unitDetail.uom },
+                  { label: 'Status', value: unitDetail.status },
+                  { label: 'Description', value: unitDetail.description },
+                ],
+              },
+            ]}
+          />
         ) : null}
 
         {detailKind === 'master_category' && categoryDetail ? (
-          <View style={{ marginTop: 8 }}>
-            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Category</Text>
-            <Text style={[styles.meta, { marginTop: 8 }]}>Name: {categoryDetail.name}</Text>
-            <Text style={styles.meta}>Status: {categoryDetail.status}</Text>
-          </View>
+          <MasterDataDetailPresentation
+            sections={[
+              {
+                title: 'Category',
+                fields: [
+                  { label: 'Name', value: categoryDetail.name },
+                  { label: 'Status', value: categoryDetail.status },
+                ],
+              },
+            ]}
+          />
         ) : null}
 
         {detailKind === 'master_bank' && bankMasterDetail ? (
-          <View style={{ marginTop: 8 }}>
-            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Bank</Text>
-            <Text style={[styles.meta, { marginTop: 8 }]}>Name: {bankMasterDetail.bank_name}</Text>
-            <Text style={styles.meta}>Code: {bankMasterDetail.bank_code || '—'}</Text>
-            <Text style={styles.meta}>SWIFT: {bankMasterDetail.swift_code || '—'}</Text>
-            <Text style={styles.meta}>Status: {bankMasterDetail.status}</Text>
-          </View>
+          <MasterDataDetailPresentation
+            sections={[
+              {
+                title: 'Bank',
+                fields: [
+                  { label: 'Name', value: bankMasterDetail.bank_name },
+                  { label: 'Code', value: bankMasterDetail.bank_code },
+                  { label: 'SWIFT', value: bankMasterDetail.swift_code },
+                  { label: 'Status', value: bankMasterDetail.status },
+                ],
+              },
+            ]}
+          />
         ) : null}
 
         {detailKind === 'master_bank_branch' && bankBranchDetail ? (
-          <View style={{ marginTop: 8 }}>
-            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Bank branch</Text>
-            <Text style={[styles.meta, { marginTop: 8 }]}>Branch: {bankBranchDetail.branch_name}</Text>
-            <Text style={styles.meta}>Branch code: {bankBranchDetail.branch_code || '—'}</Text>
-            <Text style={styles.meta}>Bank: {bankBranchDetail.bank_name}</Text>
-            <Text style={styles.meta}>Bank code: {bankBranchDetail.bank_code || '—'}</Text>
-            <Text style={styles.meta}>SWIFT: {bankBranchDetail.swift_code || '—'}</Text>
-            <Text style={styles.meta}>Status: {bankBranchDetail.status}</Text>
-          </View>
+          <MasterDataDetailPresentation
+            sections={[
+              {
+                title: 'Bank branch',
+                fields: [
+                  { label: 'Branch', value: bankBranchDetail.branch_name },
+                  { label: 'Branch code', value: bankBranchDetail.branch_code },
+                  { label: 'Bank', value: bankBranchDetail.bank_name },
+                  { label: 'Bank code', value: bankBranchDetail.bank_code },
+                  { label: 'SWIFT', value: bankBranchDetail.swift_code },
+                  { label: 'Status', value: bankBranchDetail.status },
+                ],
+              },
+            ]}
+          />
         ) : null}
 
         {detailKind === 'master_mobile_operator' && mobileOperatorDetail ? (
-          <View style={{ marginTop: 8 }}>
-            <Text style={{ ...outfit('medium', 14), color: colors.textPrimary }}>Mobile operator</Text>
-            <Text style={[styles.meta, { marginTop: 8 }]}>Name: {mobileOperatorDetail.name}</Text>
-            <Text style={styles.meta}>Code: {mobileOperatorDetail.code || '—'}</Text>
-            <Text style={styles.meta}>Status: {mobileOperatorDetail.status}</Text>
-          </View>
+          <MasterDataDetailPresentation
+            sections={[
+              {
+                title: 'Mobile operator',
+                fields: [
+                  { label: 'Name', value: mobileOperatorDetail.name },
+                  { label: 'Code', value: mobileOperatorDetail.code },
+                  { label: 'Status', value: mobileOperatorDetail.status },
+                ],
+              },
+            ]}
+          />
         ) : null}
 
         {detailKind === 'crm_contract' && crmContractDetail ? (
@@ -3061,14 +3321,6 @@ export function RecordDetailScreen() {
         ) : null}
 
         <Pressable
-          onPress={() => void openWebRoot()}
-          style={{ marginTop: 24, paddingVertical: 12, alignItems: 'center', borderRadius: 12, borderWidth: 0.5, borderColor: colors.borderSubtle }}
-        >
-          <Text style={{ ...outfit('medium', 14), color: colors.linkBlue }}>Open web ERP</Text>
-          <Text style={{ ...outfit('regular', 12), color: colors.textMuted, marginTop: 4 }}>Sign in on the full site for print, PDF, and edits.</Text>
-        </Pressable>
-
-        <Pressable
           onPress={() => {
             if (moduleRoute === 'Approvals') {
               navigation.navigate('Approvals', {});
@@ -3077,7 +3329,7 @@ export function RecordDetailScreen() {
             navigation.navigate('ModuleList', { moduleRoute });
           }}
           style={{
-            marginTop: 12,
+            marginTop: 24,
             paddingVertical: 14,
             borderRadius: 12,
             backgroundColor: colors.primaryNavy,
@@ -3087,7 +3339,24 @@ export function RecordDetailScreen() {
           <Text style={{ ...outfit('medium', 14), color: '#fff' }}>{moduleRoute === 'Approvals' ? 'Back to approvals' : 'Back to list'}</Text>
         </Pressable>
 
+        {(!loadedBody || Boolean(webDocAction)) && detailKind !== 'portal_web_surface' ? (
+          <Pressable
+            onPress={() => void openWebRoot()}
+            style={{ marginTop: 12, paddingVertical: 12, alignItems: 'center', borderRadius: 12, borderWidth: 0.5, borderColor: colors.borderSubtle }}
+          >
+            <Text style={{ ...outfit('medium', 14), color: colors.linkBlue }}>
+              {webDocAction ? (webDocAction.isPdf ? 'Open PDF' : 'Open print view') : 'Open web ERP'}
+            </Text>
+            <Text style={{ ...outfit('regular', 12), color: colors.textMuted, marginTop: 4 }}>
+              {webDocAction
+                ? 'Open print/PDF or advanced actions on the full site.'
+                : 'Sign in on the full site for print, PDF, and edits.'}
+            </Text>
+          </Pressable>
+        ) : null}
+
         {moduleRoute !== 'Approvals' &&
+        !loadedBody &&
         !financeDetail.isFinance &&
         !accountingDetail.isAccountingDetail &&
         !(webPathForPortalSurface(moduleRoute, portal) && !isAccountingApiListModule(moduleRoute) && !isFinanceReportMobileModule(moduleRoute)) ? (

@@ -35,7 +35,6 @@ import { StaffFinanceReadOnlyField } from '../components/finance/StaffFinanceRea
 import { StaffFinanceSiteStoreFields } from '../components/finance/StaffFinanceSiteStoreFields';
 import {
   STAFF_FINANCE_CATEGORIES,
-  STAFF_FINANCE_CURRENCIES,
   STAFF_FINANCE_PAYMENT_METHODS,
   staffFinanceTypeLabel,
 } from '../constants/staffFinance';
@@ -92,11 +91,18 @@ export function StaffFinanceRequestWorkspaceScreen() {
 
   const [description, setDescription] = useState('');
   const [requestCategory, setRequestCategory] = useState<PettyCashRequestCategory>('general');
-  const [currency, setCurrency] = useState<(typeof STAFF_FINANCE_CURRENCIES)[number]>('TZS');
+  const [currency, setCurrency] = useState('TZS');
   const [paymentMethod, setPaymentMethod] = useState<PettyCashPaymentMethod>(0);
   const [siteId, setSiteId] = useState('');
   const [storeId, setStoreId] = useState('');
   const [locationOptions, setLocationOptions] = useState<StaffFinanceCreateContext | null>(null);
+
+  const currencyOptions = useMemo(() => {
+    const fromApi = locationOptions?.currencies ?? [];
+    if (fromApi.length) return fromApi;
+    const code = (currency || detail?.currency || 'TZS').toUpperCase();
+    return [{ code, label: code }];
+  }, [locationOptions?.currencies, currency, detail?.currency]);
 
   const [lineDesc, setLineDesc] = useState('');
   const [lineAmount, setLineAmount] = useState('');
@@ -127,7 +133,7 @@ export function StaffFinanceRequestWorkspaceScreen() {
   const syncHeaderForm = useCallback((d: PettyCashRequestDetail) => {
     setDescription(d.description ?? '');
     setRequestCategory((d.request_category as PettyCashRequestCategory) ?? 'general');
-    setCurrency((d.currency as (typeof STAFF_FINANCE_CURRENCIES)[number]) ?? 'TZS');
+    setCurrency((d.currency || 'TZS').toUpperCase());
     setPaymentMethod((d.payment_method ?? 0) as PettyCashPaymentMethod);
     if (d.site_id) setSiteId(d.site_id);
     if (d.store_id) setStoreId(d.store_id);
@@ -477,14 +483,14 @@ export function StaffFinanceRequestWorkspaceScreen() {
             </View>
             <Text style={[styles.approvalType, { marginTop: 16 }]}>Currency</Text>
             <View style={[styles.leaveTypeWrap, { marginTop: 8 }]}>
-              {STAFF_FINANCE_CURRENCIES.map((c) => (
+              {currencyOptions.map((c) => (
                 <Pressable
-                  key={c}
-                  style={[styles.leaveTypeChip, currency === c ? styles.leaveTypeChipActive : null]}
+                  key={c.code}
+                  style={[styles.leaveTypeChip, currency === c.code ? styles.leaveTypeChipActive : null]}
                   disabled={!editable}
-                  onPress={() => setCurrency(c)}
+                  onPress={() => setCurrency(c.code)}
                 >
-                  <Text style={styles.menuChipText}>{c}</Text>
+                  <Text style={styles.menuChipText}>{c.code}</Text>
                 </Pressable>
               ))}
             </View>

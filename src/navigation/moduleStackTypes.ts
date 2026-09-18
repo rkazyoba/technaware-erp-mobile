@@ -33,6 +33,10 @@ export type RecordDetailParams = {
     | 'crm_customer'
     | 'crm_contract'
     | 'crm_quotation'
+    | 'trading_client'
+    | 'trading_client_request'
+    | 'trading_client_quotation'
+    | 'trading_sales_order'
     | 'purchase_order'
     | 'purchase_rfq'
     | 'supplier_quotation'
@@ -124,6 +128,17 @@ export type ModulesStackParamList = {
   };
   PartExpirationForm: { moduleRoute: string; recordId?: string; receiptId?: string };
   LeaveRequestForm: undefined;
+  SiteAttendanceSession: { sessionId?: string } | undefined;
+  DutyRosterBoard: undefined;
+  FieldOpsReport: undefined;
+  OccurrenceBookForm: undefined;
+  ShiftHandoverForm: undefined;
+  FuelFillForm: undefined;
+  FuelFillList: undefined;
+  FuelFillDetail: { fillId: string };
+  AssetAssignmentList: undefined;
+  AssetAssignmentIssue: undefined;
+  AssetAssignmentDetail: { assignmentId: string };
   RequisitionHeader: undefined;
   RequisitionWorkspace: { requisitionId: string; initialTab?: 'overview' | 'lines' };
   PettyCashRequestForm: { requestType?: 'imprest' | 'expense_claim' } | undefined;

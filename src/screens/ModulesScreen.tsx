@@ -49,13 +49,22 @@ export function ModulesScreen() {
   );
 
   const portalRefreshAttemptedRef = useRef(false);
+  const lastSilentRefreshAtRef = useRef(0);
 
   useFocusEffect(
     useCallback(() => {
       setPortalActiveTab('modules');
-      if (portal != null && visiblePortalCount === 0 && !portalRefreshAttemptedRef.current) {
+      // Always pull a fresh portal periodically so newly enabled surfaces (e.g. Trading)
+      // appear without requiring logout. Debounce to avoid hammering /me on quick tab switches.
+      const now = Date.now();
+      const shouldSilentRefresh =
+        portal != null && (visiblePortalCount === 0 || now - lastSilentRefreshAtRef.current > 30_000);
+      if (shouldSilentRefresh && !portalRefreshAttemptedRef.current) {
         portalRefreshAttemptedRef.current = true;
-        void onRefreshProfile({ silent: true });
+        lastSilentRefreshAtRef.current = now;
+        void onRefreshProfile({ silent: true }).finally(() => {
+          portalRefreshAttemptedRef.current = false;
+        });
       }
       void (async () => {
         const v = await AsyncStorage.getItem(VIEW_KEY);
@@ -75,7 +84,7 @@ export function ModulesScreen() {
 
   useEffect(() => {
     if (visiblePortalCount > 0) {
-      portalRefreshAttemptedRef.current = false;
+      // Keep debounce state; allow another refresh after cooldown.
     }
   }, [visiblePortalCount]);
 

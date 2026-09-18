@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { authTheme } from '../constants/authTheme';
 
 export const styles = StyleSheet.create({
   safe: {
@@ -9,12 +10,17 @@ export const styles = StyleSheet.create({
     backgroundColor: '#07204a',
   },
   safeLogin: {
-    backgroundColor: '#031336',
+    flex: 1,
+    backgroundColor: authTheme.bg,
+  },
+  loginScroll: {
+    flex: 1,
+    backgroundColor: authTheme.bg,
   },
   loginContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    backgroundColor: '#031336',
+    backgroundColor: authTheme.bg,
     paddingHorizontal: 20,
     paddingVertical: 24,
     paddingBottom: 32,

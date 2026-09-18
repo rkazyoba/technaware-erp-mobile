@@ -23,7 +23,6 @@ import { Text } from '../components/AppTypography';
 import { StaffFinanceSiteStoreFields } from '../components/finance/StaffFinanceSiteStoreFields';
 import {
   STAFF_FINANCE_CATEGORIES,
-  STAFF_FINANCE_CURRENCIES,
   STAFF_FINANCE_PAYMENT_METHODS,
   staffFinanceModuleRoute,
 } from '../constants/staffFinance';
@@ -61,7 +60,7 @@ export function PettyCashRequestFormScreen() {
   const canCreate = useMemo(() => canCrud(portal, 'payment_vouchers', 'create'), [portal]);
 
   const [requestCategory, setRequestCategory] = useState<PettyCashRequestCategory>('general');
-  const [currency, setCurrency] = useState<(typeof STAFF_FINANCE_CURRENCIES)[number]>('TZS');
+  const [currency, setCurrency] = useState('TZS');
   const [description, setDescription] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PettyCashPaymentMethod>(0);
   const [formError, setFormError] = useState<string | null>(null);
@@ -69,6 +68,10 @@ export function PettyCashRequestFormScreen() {
   const [financeCreateContext, setFinanceCreateContext] = useState<StaffFinanceCreateContext | null>(null);
   const [siteId, setSiteId] = useState('');
   const [storeId, setStoreId] = useState('');
+
+  const currencyOptions = financeCreateContext?.currencies?.length
+    ? financeCreateContext.currencies
+    : [{ code: currency || 'TZS', label: currency || 'TZS' }];
 
   useEffect(() => {
     if (!token) {
@@ -82,6 +85,9 @@ export function PettyCashRequestFormScreen() {
         setFinanceCreateContext(res.data);
         if (res.data.default_site_id) setSiteId(res.data.default_site_id);
         if (res.data.default_store_id) setStoreId(res.data.default_store_id);
+        const codes = (res.data.currencies ?? []).map((c) => c.code);
+        const preferred = (res.data.default_currency || codes[0] || 'TZS').toUpperCase();
+        setCurrency(codes.includes(preferred) ? preferred : codes[0] || preferred);
       })
       .catch(() => {
         if (!cancelled) setFinanceCreateContext(null);
@@ -237,13 +243,13 @@ export function PettyCashRequestFormScreen() {
 
           <Text style={[styles.approvalType, { marginTop: 16 }]}>Currency</Text>
           <View style={[styles.leaveTypeWrap, { marginTop: 8 }]}>
-            {STAFF_FINANCE_CURRENCIES.map((c) => (
+            {currencyOptions.map((c) => (
               <Pressable
-                key={c}
-                style={[styles.leaveTypeChip, currency === c ? styles.leaveTypeChipActive : null]}
-                onPress={() => setCurrency(c)}
+                key={c.code}
+                style={[styles.leaveTypeChip, currency === c.code ? styles.leaveTypeChipActive : null]}
+                onPress={() => setCurrency(c.code)}
               >
-                <Text style={styles.menuChipText}>{c}</Text>
+                <Text style={styles.menuChipText}>{c.code}</Text>
               </Pressable>
             ))}
           </View>

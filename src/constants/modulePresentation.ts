@@ -11,8 +11,8 @@ const COL: Record<ModuleColorFamily, { bg: string; fg: string }> = {
   slate: { bg: 'rgba(71,85,105,0.1)', fg: '#475569' },
 };
 
-export function moduleColorStyles(family: ModuleColorFamily) {
-  return COL[family];
+export function moduleColorStyles(family: ModuleColorFamily | string) {
+  return COL[family as ModuleColorFamily] ?? COL.navy;
 }
 
 export type IonGlyph = string;
@@ -64,12 +64,24 @@ export const MODULE_ICON: Record<string, IonGlyph> = {
   requisitions: 'cart-outline',
   my_payslips: 'document-text-outline',
   leave_requests: 'calendar-outline',
+  site_attendance: 'checkbox-outline',
+  duty_roster: 'calendar-number-outline',
+  field_ops_reports: 'stats-chart-outline',
+  occurrence_book: 'book-outline',
+  shift_handover: 'swap-horizontal-outline',
+  site_incidents: 'warning-outline',
+  field_ops_asset_assignments: 'shield-checkmark-outline',
+  field_ops_fuel_fills: 'water-outline',
   team_leave_approvals: 'people-outline',
   hr_leave_approvals: 'checkmark-done-outline',
   attendance: 'time-outline',
   crm_customers: 'people-outline',
   crm_contracts: 'document-text-outline',
   crm_quotations: 'pricetag-outline',
+  trading_clients: 'business-outline',
+  trading_client_requests: 'mail-outline',
+  trading_client_quotations: 'pricetag-outline',
+  trading_sales_orders: 'cart-outline',
 
   // Finance & commercial
   finance_customer_invoices: 'file-tray-full-outline',
@@ -166,9 +178,21 @@ export function colorFamilyForSurfaceId(id: string): ModuleColorFamily {
     team_leave_approvals: 'teal',
     hr_leave_approvals: 'purple',
     attendance: 'amber',
+    site_attendance: 'green',
+    duty_roster: 'navy',
+    field_ops_reports: 'purple',
+    occurrence_book: 'amber',
+    shift_handover: 'navy',
+    site_incidents: 'coral',
+    field_ops_asset_assignments: 'teal',
+    field_ops_fuel_fills: 'amber',
     crm_customers: 'blue',
     crm_contracts: 'navy',
     crm_quotations: 'teal',
+    trading_clients: 'teal',
+    trading_client_requests: 'blue',
+    trading_client_quotations: 'amber',
+    trading_sales_orders: 'green',
 
     // Finance & commercial
     finance_customer_invoices: 'navy',
@@ -230,5 +254,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   workflow: 'Workflow & comms',
   uncategorised: 'Modules',
   crm_sales: 'CRM & sales',
+  trading: 'Trading',
   pos: 'Point of sale',
+  field_ops: 'Field operations',
 };

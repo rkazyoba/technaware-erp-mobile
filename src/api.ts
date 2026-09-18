@@ -15,6 +15,25 @@ type LoginResponse = {
   portal?: MobilePortalBootstrap;
 };
 
+type DeviceLoginResponse = LoginResponse & {
+  device?: {
+    id: number;
+    device_uid: string;
+    biometric_enabled: boolean;
+  };
+};
+
+type RegisterDeviceResponse = {
+  device: {
+    id: number;
+    device_uid: string;
+    device_name: string | null;
+    platform: string | null;
+    biometric_enabled: boolean;
+    registered_at: string | null;
+  };
+};
+
 type MeResponse = {
   user: SignedInUser;
   portal?: MobilePortalBootstrap;
@@ -454,6 +473,147 @@ export type CrmQuotationDetail = {
   }>;
 };
 
+export type TradingClientListItem = {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  contact: string;
+  phone: string;
+};
+
+export type TradingClientDetail = {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  contact_person_name: string;
+  contact_person_email: string;
+  contact_person_designation: string;
+  contact_person_mobile: string;
+  address: string;
+  tin: string;
+  vrn: string;
+  tax_liability_category: string;
+};
+
+export type TradingClientRequestListItem = {
+  id: string;
+  ref: string;
+  title: string;
+  client_name: string;
+  status: string;
+  status_label: string;
+  request_date?: string | null;
+};
+
+export type TradingClientRequestDetail = {
+  id: string;
+  ref: string;
+  title: string;
+  client_name: string;
+  client_code: string;
+  status: string;
+  status_label: string;
+  request_date?: string | null;
+  needed_by_date?: string | null;
+  notes: string;
+  converted_quotation_id: string | null;
+  lines: Array<{
+    id: string;
+    line_no: number;
+    item: string;
+    description: string;
+    qty: number;
+    unit: string;
+  }>;
+};
+
+export type TradingClientQuotationListItem = {
+  id: string;
+  ref: string;
+  client_name: string;
+  status: string;
+  status_label: string;
+  quotation_date?: string | null;
+  total_amount: number | null;
+};
+
+export type TradingClientQuotationDetail = {
+  id: string;
+  ref: string;
+  client_name: string;
+  client_code: string;
+  source_request_ref: string;
+  status: string;
+  status_label: string;
+  quotation_date?: string | null;
+  valid_date?: string | null;
+  vat_treatment: string;
+  discount: number | null;
+  total_selling_price: number | null;
+  total_vat: number | null;
+  total_amount: number | null;
+  notes: string;
+  converted_sales_order_id: string | null;
+  lines: Array<{
+    id: string;
+    line_no: number;
+    item: string;
+    description: string;
+    qty: number;
+    unit: string;
+    unit_price: number | null;
+    line_discount: number | null;
+    line_net: number | null;
+    line_vat: number | null;
+    line_total: number | null;
+  }>;
+};
+
+export type TradingSalesOrderListItem = {
+  id: string;
+  ref: string;
+  client_name: string;
+  status: string;
+  status_label: string;
+  order_date?: string | null;
+  total_amount: number | null;
+};
+
+export type TradingSalesOrderDetail = {
+  id: string;
+  ref: string;
+  client_name: string;
+  client_code: string;
+  quotation_ref: string;
+  status: string;
+  status_label: string;
+  order_date?: string | null;
+  delivery_date?: string | null;
+  vat_treatment: string;
+  discount: number | null;
+  total_selling_price: number | null;
+  total_vat: number | null;
+  total_amount: number | null;
+  notes: string;
+  converted_invoice_id: string | null;
+  lines: Array<{
+    id: string;
+    line_no: number;
+    item: string;
+    description: string;
+    qty: number;
+    qty_fulfilled: number;
+    unit: string;
+    unit_price: number | null;
+    line_discount: number | null;
+    line_net: number | null;
+    line_vat: number | null;
+    line_total: number | null;
+  }>;
+};
+
 export type SupplierListItem = {
   id: string;
   code: string;
@@ -500,7 +660,10 @@ export type ProductListItem = {
   product_type: string;
 };
 
-export type ProductDetail = ProductListItem;
+export type ProductDetail = ProductListItem & {
+  part_code?: string;
+  part_description?: string;
+};
 
 export type BankMasterListItem = {
   id: string;
@@ -1053,7 +1216,12 @@ export type PayslipDetail = {
   lines: Array<{ id: string; label: string; amount: number; type: string }>;
 };
 
-const API_BASE_URL = resolveApiBaseUrl();
+function getApiBaseUrl(): string {
+  return resolveApiBaseUrl();
+}
+
+/** Resolved at call time so `.env` / `app.config.js` changes apply after Metro reload. */
+export const API_BASE_URL = getApiBaseUrl();
 
 /** LAN / cellular dev. Override with EXPO_PUBLIC_API_TIMEOUT_MS (5000–120000). */
 function readRequestTimeoutMs(): number {
@@ -1137,7 +1305,8 @@ type ApiRequestInit = RequestInit & {
 };
 
 async function request<T>(path: string, init?: ApiRequestInit): Promise<ApiEnvelope<T>> {
-  if (!API_BASE_URL) {
+  const apiBaseUrl = getApiBaseUrl();
+  if (!apiBaseUrl) {
     throw new Error(
       'Missing API base URL. Set EXPO_PUBLIC_API_BASE_URL in erp-mobile/.env or expo.extra.apiBaseUrl in app.json, then restart Expo with -c.'
     );
@@ -1164,7 +1333,7 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<ApiEnvel
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
       ...restInit,
       body,
       headers: merged,
@@ -1217,7 +1386,7 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<ApiEnvel
 
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(
-        `Request timed out after ${timeoutMs / 1000}s waiting for ${API_BASE_URL}.${unreachableBackendHint()}`,
+        `Request timed out after ${timeoutMs / 1000}s waiting for ${apiBaseUrl}.${unreachableBackendHint()}`,
       );
     }
 
@@ -1225,7 +1394,7 @@ async function request<T>(path: string, init?: ApiRequestInit): Promise<ApiEnvel
       error instanceof TypeError &&
       (errMsg.toLowerCase().includes('network') || errMsg.toLowerCase().includes('failed to fetch'))
     ) {
-      throw new Error(`Network request failed for ${API_BASE_URL}.${unreachableBackendHint()}`);
+      throw new Error(`Network request failed for ${apiBaseUrl}.${unreachableBackendHint()}`);
     }
 
     if (error instanceof Error) {
@@ -1246,6 +1415,55 @@ export function login(username: string, password: string, deviceName = 'expo-dev
       password,
       device_name: safeDeviceName,
     }),
+  });
+}
+
+export function deviceLogin(deviceUid: string, pin: string) {
+  return request<DeviceLoginResponse>('/auth/device-login', {
+    method: 'POST',
+    body: JSON.stringify({
+      device_uid: deviceUid.trim(),
+      pin,
+    }),
+  });
+}
+
+export type RegisterMobileDeviceInput = {
+  deviceUid: string;
+  pin: string;
+  deviceName?: string;
+  platform?: string;
+  model?: string;
+  biometricEnabled?: boolean;
+};
+
+export function registerMobileDevice(token: string, input: RegisterMobileDeviceInput) {
+  return request<RegisterDeviceResponse>('/auth/devices/register', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      device_uid: input.deviceUid.trim(),
+      pin: input.pin,
+      device_name: input.deviceName?.trim().slice(0, 100) || undefined,
+      platform: input.platform?.trim().slice(0, 32) || undefined,
+      model: input.model?.trim().slice(0, 120) || undefined,
+      biometric_enabled: input.biometricEnabled === true,
+    }),
+  });
+}
+
+export function revokeMobileDevice(token: string, deviceUid: string) {
+  return request<null>('/auth/devices/revoke', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      device_uid: deviceUid.trim(),
+    }),
+    skipSessionInvalid: true,
   });
 }
 
@@ -1529,6 +1747,83 @@ export function getCrmQuotations(token: string, page = 1, perPage = 15, q = '', 
 
 export function getCrmQuotationDetail(token: string, id: string) {
   return request<CrmQuotationDetail>(`/crm/quotations/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getTradingClients(token: string, page = 1, perPage = 15, q = '') {
+  const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  const t = q.trim();
+  if (t) qs.set('q', t);
+  return request<{ items: TradingClientListItem[]; pagination: PaginationMeta }>(`/trading/clients?${qs.toString()}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getTradingClientDetail(token: string, id: string) {
+  return request<TradingClientDetail>(`/trading/clients/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getTradingClientRequests(token: string, page = 1, perPage = 15, q = '') {
+  const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  const t = q.trim();
+  if (t) qs.set('q', t);
+  return request<{ items: TradingClientRequestListItem[]; pagination: PaginationMeta }>(
+    `/trading/client-requests?${qs.toString()}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function getTradingClientRequestDetail(token: string, id: string) {
+  return request<TradingClientRequestDetail>(`/trading/client-requests/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getTradingClientQuotations(token: string, page = 1, perPage = 15, q = '') {
+  const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  const t = q.trim();
+  if (t) qs.set('q', t);
+  return request<{ items: TradingClientQuotationListItem[]; pagination: PaginationMeta }>(
+    `/trading/client-quotations?${qs.toString()}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function getTradingClientQuotationDetail(token: string, id: string) {
+  return request<TradingClientQuotationDetail>(`/trading/client-quotations/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getTradingSalesOrders(token: string, page = 1, perPage = 15, q = '') {
+  const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  const t = q.trim();
+  if (t) qs.set('q', t);
+  return request<{ items: TradingSalesOrderListItem[]; pagination: PaginationMeta }>(
+    `/trading/sales-orders?${qs.toString()}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function getTradingSalesOrderDetail(token: string, id: string) {
+  return request<TradingSalesOrderDetail>(`/trading/sales-orders/${encodeURIComponent(id)}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -2753,6 +3048,678 @@ export function postAttendancePunch(token: string) {
   });
 }
 
+export type FieldOpsSite = { id: string; name: string };
+
+export type FieldOpsRosterEntry = {
+  id: string;
+  date: string | null;
+  site_id: string;
+  site_name: string;
+  employee_id: string;
+  employee_name: string;
+  guard_title: string;
+  shift_slot: string;
+  work_shift_id: string | null;
+  status: string;
+};
+
+export type FieldOpsSessionMark = {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  guard_title: string;
+  status: 'present' | 'absent' | string;
+  absence_reason: string;
+  employee_leave_id: string | null;
+  supervisor_remark: string;
+};
+
+export type FieldOpsSession = {
+  id: string;
+  date: string | null;
+  site_id: string;
+  site_name: string;
+  shift_slot: string;
+  work_shift_id: string | null;
+  status: string;
+  notes: string;
+  submitted_at: string | null;
+  marks: FieldOpsSessionMark[];
+  registers: { id: string; original_name: string; url: string | null; uploaded_at: string | null }[];
+  absence_reasons: string[];
+};
+
+export type FieldOpsSessionListItem = {
+  id: string;
+  date: string | null;
+  site_id: string;
+  site_name: string;
+  shift_slot: string;
+  status: string;
+};
+
+export type FieldOpsReportPayload = {
+  period: { from: string; to: string };
+  sites: {
+    site_id: number;
+    site_name: string;
+    shift_slot: string;
+    marked: number;
+    present: number;
+    absent: number;
+    present_pct: number;
+  }[];
+  totals: { marked: number; present: number; absent: number };
+  absences_by_reason?: Record<string, number>;
+  absenteeism_rate?: number;
+  register?: unknown[];
+};
+
+export function getFieldOpsSites(token: string) {
+  return request<{ items: FieldOpsSite[] }>('/field-ops/sites', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export type FieldOpsSiteEmployee = {
+  id: string;
+  name: string;
+  guard_title: string;
+  source: string;
+};
+
+export function getFieldOpsSiteEmployees(
+  token: string,
+  siteId: string,
+  params?: { date?: string; shiftSlot?: string },
+) {
+  const qs = new URLSearchParams();
+  if (params?.date) qs.set('date', params.date);
+  if (params?.shiftSlot) qs.set('shift_slot', params.shiftSlot);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<{ items: FieldOpsSiteEmployee[]; site_id: string; date: string; shift_slot: string }>(
+    `/field-ops/sites/${encodeURIComponent(siteId)}/employees${suffix}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+}
+
+export function getFieldOpsRoster(
+  token: string,
+  params: { date: string; siteId?: string; shiftSlot?: string },
+) {
+  const qs = new URLSearchParams();
+  qs.set('date', params.date);
+  if (params.siteId) qs.set('site_id', params.siteId);
+  if (params.shiftSlot) qs.set('shift_slot', params.shiftSlot);
+  return request<{ items: FieldOpsRosterEntry[]; date: string }>(`/field-ops/roster?${qs.toString()}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export type FieldOpsRosterBoardDay = {
+  date: string;
+  status: 'duty' | 'off' | 'present' | 'absent' | 'unmarked' | string;
+  pattern_duty: boolean;
+  shift_slot: string;
+  roster_entry_id?: string | null;
+  mark_status?: string | null;
+};
+
+export type FieldOpsRosterBoardRow = {
+  employee_id: string;
+  employee_name: string;
+  guard_title: string;
+  site_id: string | null;
+  work_shift_id: string | null;
+  work_shift_code?: string | null;
+  standard_hours?: number | null;
+  days: Record<string, FieldOpsRosterBoardDay>;
+};
+
+export type FieldOpsRosterBoard = {
+  week_start: string;
+  week_end: string;
+  dates: string[];
+  rows: FieldOpsRosterBoardRow[];
+};
+
+export function getFieldOpsRosterBoard(
+  token: string,
+  params: { weekStart: string; siteId?: string },
+) {
+  const qs = new URLSearchParams();
+  qs.set('week_start', params.weekStart);
+  if (params.siteId) qs.set('site_id', params.siteId);
+  return request<FieldOpsRosterBoard>(`/field-ops/roster/board?${qs.toString()}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getFieldOpsSessions(token: string, params: { date: string; siteId?: string }) {
+  const qs = new URLSearchParams();
+  qs.set('date', params.date);
+  if (params.siteId) qs.set('site_id', params.siteId);
+  return request<{ items: FieldOpsSessionListItem[]; date: string }>(`/field-ops/sessions?${qs.toString()}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function openFieldOpsSession(
+  token: string,
+  body: { date: string; site_id: number | string; shift_slot?: string; work_shift_id?: number | string },
+) {
+  return request<FieldOpsSession>('/field-ops/sessions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+}
+
+export function getFieldOpsSession(token: string, id: string) {
+  return request<FieldOpsSession>(`/field-ops/sessions/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function updateFieldOpsSessionMarks(
+  token: string,
+  id: string,
+  marks: {
+    employee_id: number | string;
+    status: string;
+    absence_reason?: string | null;
+    supervisor_remark?: string | null;
+  }[],
+) {
+  return request<FieldOpsSession>(`/field-ops/sessions/${encodeURIComponent(id)}/marks`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ marks }),
+  });
+}
+
+export function submitFieldOpsSession(token: string, id: string) {
+  return request<FieldOpsSession>(`/field-ops/sessions/${encodeURIComponent(id)}/submit`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function uploadFieldOpsRegister(token: string, sessionId: string, uri: string) {
+  const form = new FormData();
+  form.append('register', {
+    uri,
+    name: `register-${Date.now()}.jpg`,
+    type: 'image/jpeg',
+  } as unknown as Blob);
+
+  return request<{ id: string; path: string; url: string | null; original_name: string }>(
+    `/field-ops/sessions/${encodeURIComponent(sessionId)}/registers`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    },
+  );
+}
+
+export function getFieldOpsReportDaily(token: string, params?: { date?: string; siteId?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.date) qs.set('date', params.date);
+  if (params?.siteId) qs.set('site_id', params.siteId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<FieldOpsReportPayload>(`/field-ops/reports/daily${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getFieldOpsReportWeekly(token: string, params?: { weekStart?: string; siteId?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.weekStart) qs.set('week_start', params.weekStart);
+  if (params?.siteId) qs.set('site_id', params.siteId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<FieldOpsReportPayload>(`/field-ops/reports/weekly${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getFieldOpsReportMonthly(token: string, params?: { month?: string; siteId?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.month) qs.set('month', params.month);
+  if (params?.siteId) qs.set('site_id', params.siteId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<FieldOpsReportPayload>(`/field-ops/reports/monthly${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getFieldOpsOb(
+  token: string,
+  params?: { from?: string; to?: string; siteId?: string },
+) {
+  const qs = new URLSearchParams();
+  if (params?.from) qs.set('from', params.from);
+  if (params?.to) qs.set('to', params.to);
+  if (params?.siteId) qs.set('site_id', params.siteId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<{ entries: Record<string, unknown>[]; count: number }>(`/field-ops/ob${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createFieldOpsOb(
+  token: string,
+  body: {
+    site_id: number | string;
+    occurred_at: string;
+    severity: string;
+    title: string;
+    narrative: string;
+    category?: string;
+    follow_up?: string;
+  },
+) {
+  return request<{ id: string }>('/field-ops/ob', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+}
+
+export function getFieldOpsHandovers(token: string, params?: { from?: string; to?: string; siteId?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.from) qs.set('from', params.from);
+  if (params?.to) qs.set('to', params.to);
+  if (params?.siteId) qs.set('site_id', params.siteId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<{ items: Record<string, unknown>[] }>(`/field-ops/handovers${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createFieldOpsHandover(
+  token: string,
+  body: {
+    site_id: number | string;
+    date: string;
+    from_shift_slot?: string;
+    to_shift_slot?: string;
+    summary?: string;
+    open_issues?: string;
+  },
+) {
+  return request<{ id: string }>('/field-ops/handovers', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+}
+
+export function getFieldOpsIncidents(token: string, params?: { from?: string; to?: string; siteId?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.from) qs.set('from', params.from);
+  if (params?.to) qs.set('to', params.to);
+  if (params?.siteId) qs.set('site_id', params.siteId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<{ items: Record<string, unknown>[] }>(`/field-ops/incidents${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createFieldOpsIncident(
+  token: string,
+  body: {
+    site_id: number | string;
+    occurred_at: string;
+    severity: string;
+    title: string;
+    description: string;
+  },
+) {
+  return request<{ id: string }>('/field-ops/incidents', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+}
+
+export type FieldOpsAssetType = {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  track_mode: string;
+  part_id?: string | null;
+};
+
+export type FieldOpsAssetEvent = {
+  id: string;
+  event_type: string;
+  from_employee_id?: string | null;
+  from_employee_name?: string;
+  to_employee_id?: string | null;
+  to_employee_name?: string;
+  site_id?: string | null;
+  created_at?: string | null;
+};
+
+export type FieldOpsAssetAssignment = {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  site_id?: string | null;
+  site_name?: string;
+  store_id?: string | null;
+  store_name?: string;
+  asset_type_id: string;
+  asset_type_name: string;
+  asset_type_code?: string;
+  asset_category?: string;
+  track_mode?: string;
+  part_id?: string | null;
+  part_label?: string;
+  quantity: number;
+  size?: string;
+  serial_no?: string;
+  condition: string;
+  status: string;
+  is_open: boolean;
+  issued_at?: string | null;
+  due_return_at?: string | null;
+  returned_at?: string | null;
+  return_condition?: string;
+  return_notes?: string;
+  notes?: string;
+  issued_by?: string;
+  returned_by?: string;
+  events?: FieldOpsAssetEvent[];
+  conditions?: string[];
+  statuses?: string[];
+};
+
+export function getFieldOpsAssetTypes(token: string) {
+  return request<{
+    items: FieldOpsAssetType[];
+    categories: string[];
+    track_modes: string[];
+    conditions: string[];
+    statuses: string[];
+  }>('/field-ops/asset-types', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getFieldOpsAssets(
+  token: string,
+  params?: { employeeId?: string; siteId?: string; status?: string },
+) {
+  const qs = new URLSearchParams();
+  if (params?.employeeId) qs.set('employee_id', params.employeeId);
+  if (params?.siteId) qs.set('site_id', params.siteId);
+  if (params?.status) qs.set('status', params.status);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<{ items: FieldOpsAssetAssignment[] }>(`/field-ops/assets${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getFieldOpsAssetsOutstanding(
+  token: string,
+  params?: { employeeId?: string; siteId?: string },
+) {
+  const qs = new URLSearchParams();
+  if (params?.employeeId) qs.set('employee_id', params.employeeId);
+  if (params?.siteId) qs.set('site_id', params.siteId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<{ items: FieldOpsAssetAssignment[] }>(`/field-ops/assets/reports/outstanding${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getFieldOpsAsset(token: string, id: string) {
+  return request<FieldOpsAssetAssignment>(`/field-ops/assets/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function issueFieldOpsAsset(
+  token: string,
+  body: {
+    employee_id: number | string;
+    asset_type_id: number | string;
+    site_id?: number | string | null;
+    store_id?: number | string | null;
+    quantity?: number | string;
+    size?: string | null;
+    serial_no?: string | null;
+    condition?: string | null;
+    notes?: string | null;
+    due_return_at?: string | null;
+  },
+) {
+  return request<FieldOpsAssetAssignment>('/field-ops/assets', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+}
+
+export function returnFieldOpsAsset(
+  token: string,
+  id: string,
+  body?: { return_condition?: string | null; return_notes?: string | null },
+) {
+  return request<FieldOpsAssetAssignment>(`/field-ops/assets/${encodeURIComponent(id)}/return`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body ?? {}),
+  });
+}
+
+export function transferFieldOpsAsset(
+  token: string,
+  id: string,
+  body: { to_employee_id: number | string; site_id?: number | string | null; notes?: string | null },
+) {
+  return request<{ from: FieldOpsAssetAssignment; to: FieldOpsAssetAssignment }>(
+    `/field-ops/assets/${encodeURIComponent(id)}/transfer`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function updateFieldOpsAssetStatus(
+  token: string,
+  id: string,
+  body: { status: string; notes?: string | null; condition?: string | null },
+) {
+  return request<FieldOpsAssetAssignment>(`/field-ops/assets/${encodeURIComponent(id)}/status`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+}
+
+export type FieldOpsFuelVehicle = {
+  id: string;
+  registration_number: string;
+  name: string;
+  label: string;
+  fuel_type: string;
+  default_site_id: string | null;
+  last_odometer_km: number | null;
+  last_filled_at: string | null;
+};
+
+export type FieldOpsFuelStation = {
+  id: string;
+  code: string;
+  name: string;
+  label: string;
+  location: string;
+};
+
+export type FieldOpsFuelFill = {
+  id: string;
+  vehicle_id: string;
+  vehicle_registration: string | null;
+  vehicle_name: string | null;
+  fuel_station_id: string;
+  fuel_station_code: string | null;
+  fuel_station_name: string | null;
+  site_id: string | null;
+  site_name: string | null;
+  filled_at: string | null;
+  liters: number;
+  amount_paid: number;
+  odometer_km: number;
+  receipt_code: string;
+  attendant_name: string;
+  fuel_type: string | null;
+  notes: string | null;
+  status: string;
+  has_receipt: boolean;
+  recorded_by_user_id: string | null;
+  voided_at: string | null;
+  void_reason: string | null;
+  unit_price: number | null;
+  km_since_previous: number | null;
+  km_per_liter: number | null;
+  liters_per_100km: number | null;
+};
+
+export function getFieldOpsFuelVehicles(token: string) {
+  return request<{ items: FieldOpsFuelVehicle[]; fuel_types: string[] }>('/field-ops/fuel-vehicles', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getFieldOpsFuelStations(token: string) {
+  return request<{ items: FieldOpsFuelStation[] }>('/field-ops/fuel-stations', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getFieldOpsFuelFills(
+  token: string,
+  params?: { from?: string; to?: string; vehicleId?: string; fuelStationId?: string; includeVoided?: boolean },
+) {
+  const qs = new URLSearchParams();
+  if (params?.from) qs.set('from', params.from);
+  if (params?.to) qs.set('to', params.to);
+  if (params?.vehicleId) qs.set('vehicle_id', params.vehicleId);
+  if (params?.fuelStationId) qs.set('fuel_station_id', params.fuelStationId);
+  if (params?.includeVoided) qs.set('include_voided', '1');
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return request<{ items: FieldOpsFuelFill[]; count: number }>(`/field-ops/fuel-fills${suffix}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getFieldOpsFuelFill(token: string, id: string) {
+  return request<FieldOpsFuelFill>(`/field-ops/fuel-fills/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createFieldOpsFuelFill(
+  token: string,
+  body: {
+    vehicle_id: number | string;
+    fuel_station_id: number | string;
+    filled_at: string;
+    liters: number | string;
+    amount_paid: number | string;
+    odometer_km: number | string;
+    receipt_code: string;
+    attendant_name: string;
+    fuel_type?: string | null;
+    site_id?: number | string | null;
+    notes?: string | null;
+  },
+) {
+  return request<FieldOpsFuelFill>('/field-ops/fuel-fills', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+}
+
+export function createFieldOpsFuelFillWithReceipt(
+  token: string,
+  body: {
+    vehicle_id: number | string;
+    fuel_station_id: number | string;
+    filled_at: string;
+    liters: number | string;
+    amount_paid: number | string;
+    odometer_km: number | string;
+    receipt_code: string;
+    attendant_name: string;
+    fuel_type?: string | null;
+    site_id?: number | string | null;
+    notes?: string | null;
+  },
+  receiptUri: string,
+) {
+  const form = new FormData();
+  form.append('vehicle_id', String(body.vehicle_id));
+  form.append('fuel_station_id', String(body.fuel_station_id));
+  form.append('filled_at', body.filled_at);
+  form.append('liters', String(body.liters));
+  form.append('amount_paid', String(body.amount_paid));
+  form.append('odometer_km', String(body.odometer_km));
+  form.append('receipt_code', body.receipt_code);
+  form.append('attendant_name', body.attendant_name);
+  if (body.fuel_type) form.append('fuel_type', body.fuel_type);
+  if (body.site_id != null && body.site_id !== '') form.append('site_id', String(body.site_id));
+  if (body.notes) form.append('notes', body.notes);
+  form.append('receipt', {
+    uri: receiptUri,
+    name: `fuel-receipt-${Date.now()}.jpg`,
+    type: 'image/jpeg',
+  } as unknown as Blob);
+
+  return request<FieldOpsFuelFill>('/field-ops/fuel-fills', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+}
+
+export function voidFieldOpsFuelFill(token: string, id: string, voidReason: string) {
+  return request<FieldOpsFuelFill>(`/field-ops/fuel-fills/${encodeURIComponent(id)}/void`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ void_reason: voidReason }),
+  });
+}
+
 export function getHospitalityFrontDeskSummary(token: string, propertyId?: string | null) {
   const qs = new URLSearchParams();
   if (propertyId && propertyId.trim() !== '') {
@@ -3789,6 +4756,8 @@ export type StaffFinanceCreateContext = {
   outstanding_items: Array<{ id: string; document_no: string; total_amount: number; currency: string }>;
   default_site_id?: string | null;
   default_store_id?: string | null;
+  default_currency?: string | null;
+  currencies?: Array<{ code: string; label: string }>;
   sites?: StaffFinanceSiteOption[];
   stores?: StaffFinanceStoreOption[];
 };
@@ -4858,5 +5827,3 @@ export function getHrPayrollRunDetail(token: string, id: string) {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
-
-export { API_BASE_URL };

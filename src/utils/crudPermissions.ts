@@ -24,7 +24,9 @@ export type CrudResource =
   | 'supplier_returns'
   | 'pick_tickets'
   | 'payment_vouchers'
-  | 'requisitions';
+  | 'requisitions'
+  | 'field_ops_asset_assignments'
+  | 'field_ops_fuel_fills';
 
 export type CrudAction = 'view' | 'create' | 'update' | 'delete' | 'approve';
 

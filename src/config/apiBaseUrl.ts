@@ -17,19 +17,23 @@ export function resolveDevLanHost(): string | null {
   return host;
 }
 
+function normalizeBaseUrl(url: string): string {
+  return url.trim().replace(/\/+$/, '');
+}
+
 /**
  * API base URL ending with `/api/v1`.
  * Prefers `EXPO_PUBLIC_API_BASE_URL`, then `expo.extra.apiBaseUrl`, then dev LAN host.
  */
 export function resolveApiBaseUrl(): string {
-  const fromEnv = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').trim();
+  const fromEnv = normalizeBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL ?? '');
   if (fromEnv) {
-    return fromEnv.replace(/\/+$/, '');
+    return fromEnv;
   }
 
-  const fromExtra = (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined)?.trim();
+  const fromExtra = normalizeBaseUrl((Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ?? '');
   if (fromExtra) {
-    return fromExtra.replace(/\/+$/, '');
+    return fromExtra;
   }
 
   if (__DEV__) {

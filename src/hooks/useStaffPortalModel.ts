@@ -62,6 +62,14 @@ import {
   getCrmCustomers,
   getCrmQuotationDetail,
   getCrmQuotations,
+  getTradingClientDetail,
+  getTradingClientQuotationDetail,
+  getTradingClientQuotations,
+  getTradingClientRequestDetail,
+  getTradingClientRequests,
+  getTradingClients,
+  getTradingSalesOrderDetail,
+  getTradingSalesOrders,
   getCustomerInvoiceDetail,
   getCustomerInvoices,
   getEmployeeDetail,
@@ -146,6 +154,14 @@ import {
   type CrmCustomerListItem,
   type CrmQuotationDetail,
   type CrmQuotationListItem,
+  type TradingClientDetail,
+  type TradingClientListItem,
+  type TradingClientRequestDetail,
+  type TradingClientRequestListItem,
+  type TradingClientQuotationDetail,
+  type TradingClientQuotationListItem,
+  type TradingSalesOrderDetail,
+  type TradingSalesOrderListItem,
   type LeaveApprovalQueueItem,
   type LeaveRequestDetail,
   type LeaveRequestItem,
@@ -714,6 +730,30 @@ export function useStaffPortalModel({
   const [crmQuotationsUpdatedAt, setCrmQuotationsUpdatedAt] = useState<string | null>(null);
   const [crmQuotationDetail, setCrmQuotationDetail] = useState<CrmQuotationDetail | null>(null);
   const [crmQuotationStatus, setCrmQuotationStatus] = useState<'all' | 'pending'>('all');
+
+  const [tradingClientItems, setTradingClientItems] = useState<TradingClientListItem[]>([]);
+  const [tradingClientPage, setTradingClientPage] = useState(1);
+  const [tradingClientHasMore, setTradingClientHasMore] = useState(false);
+  const [tradingClientsUpdatedAt, setTradingClientsUpdatedAt] = useState<string | null>(null);
+  const [tradingClientDetail, setTradingClientDetail] = useState<TradingClientDetail | null>(null);
+
+  const [tradingClientRequestItems, setTradingClientRequestItems] = useState<TradingClientRequestListItem[]>([]);
+  const [tradingClientRequestPage, setTradingClientRequestPage] = useState(1);
+  const [tradingClientRequestHasMore, setTradingClientRequestHasMore] = useState(false);
+  const [tradingClientRequestsUpdatedAt, setTradingClientRequestsUpdatedAt] = useState<string | null>(null);
+  const [tradingClientRequestDetail, setTradingClientRequestDetail] = useState<TradingClientRequestDetail | null>(null);
+
+  const [tradingClientQuotationItems, setTradingClientQuotationItems] = useState<TradingClientQuotationListItem[]>([]);
+  const [tradingClientQuotationPage, setTradingClientQuotationPage] = useState(1);
+  const [tradingClientQuotationHasMore, setTradingClientQuotationHasMore] = useState(false);
+  const [tradingClientQuotationsUpdatedAt, setTradingClientQuotationsUpdatedAt] = useState<string | null>(null);
+  const [tradingClientQuotationDetail, setTradingClientQuotationDetail] = useState<TradingClientQuotationDetail | null>(null);
+
+  const [tradingSalesOrderItems, setTradingSalesOrderItems] = useState<TradingSalesOrderListItem[]>([]);
+  const [tradingSalesOrderPage, setTradingSalesOrderPage] = useState(1);
+  const [tradingSalesOrderHasMore, setTradingSalesOrderHasMore] = useState(false);
+  const [tradingSalesOrdersUpdatedAt, setTradingSalesOrdersUpdatedAt] = useState<string | null>(null);
+  const [tradingSalesOrderDetail, setTradingSalesOrderDetail] = useState<TradingSalesOrderDetail | null>(null);
 
   const [attendanceItems, setAttendanceItems] = useState<AttendanceRow[]>([]);
   const [attendanceFrom, setAttendanceFrom] = useState<string | null>(null);
@@ -2079,6 +2119,122 @@ export function useStaffPortalModel({
     }
   }, [token]);
 
+  const loadTradingClients = async (page = 1) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getTradingClients(token, page, 15, '');
+      setTradingClientItems((current) => (page === 1 ? res.data.items : [...current, ...res.data.items]));
+      setTradingClientPage(res.data.pagination.current_page);
+      setTradingClientHasMore(res.data.pagination.has_more);
+      setTradingClientsUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(error instanceof Error ? error.message : 'Failed to load clients.');
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadTradingClientDetail = useCallback(async (id: string) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getTradingClientDetail(token, id);
+      setTradingClientDetail(res.data);
+    } catch (error) {
+      setModuleError(error instanceof Error ? error.message : 'Failed to load client.');
+    } finally {
+      setModuleLoading(false);
+    }
+  }, [token]);
+
+  const loadTradingClientRequests = async (page = 1) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getTradingClientRequests(token, page, 15, '');
+      setTradingClientRequestItems((current) => (page === 1 ? res.data.items : [...current, ...res.data.items]));
+      setTradingClientRequestPage(res.data.pagination.current_page);
+      setTradingClientRequestHasMore(res.data.pagination.has_more);
+      setTradingClientRequestsUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(error instanceof Error ? error.message : 'Failed to load client requests.');
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadTradingClientRequestDetail = useCallback(async (id: string) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getTradingClientRequestDetail(token, id);
+      setTradingClientRequestDetail(res.data);
+    } catch (error) {
+      setModuleError(error instanceof Error ? error.message : 'Failed to load client request.');
+    } finally {
+      setModuleLoading(false);
+    }
+  }, [token]);
+
+  const loadTradingClientQuotations = async (page = 1) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getTradingClientQuotations(token, page, 15, '');
+      setTradingClientQuotationItems((current) => (page === 1 ? res.data.items : [...current, ...res.data.items]));
+      setTradingClientQuotationPage(res.data.pagination.current_page);
+      setTradingClientQuotationHasMore(res.data.pagination.has_more);
+      setTradingClientQuotationsUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(error instanceof Error ? error.message : 'Failed to load client quotations.');
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadTradingClientQuotationDetail = useCallback(async (id: string) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getTradingClientQuotationDetail(token, id);
+      setTradingClientQuotationDetail(res.data);
+    } catch (error) {
+      setModuleError(error instanceof Error ? error.message : 'Failed to load client quotation.');
+    } finally {
+      setModuleLoading(false);
+    }
+  }, [token]);
+
+  const loadTradingSalesOrders = async (page = 1) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getTradingSalesOrders(token, page, 15, '');
+      setTradingSalesOrderItems((current) => (page === 1 ? res.data.items : [...current, ...res.data.items]));
+      setTradingSalesOrderPage(res.data.pagination.current_page);
+      setTradingSalesOrderHasMore(res.data.pagination.has_more);
+      setTradingSalesOrdersUpdatedAt(formatNow());
+    } catch (error) {
+      setModuleError(error instanceof Error ? error.message : 'Failed to load sales orders.');
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
+  const loadTradingSalesOrderDetail = useCallback(async (id: string) => {
+    setModuleLoading(true);
+    setModuleError(null);
+    try {
+      const res = await getTradingSalesOrderDetail(token, id);
+      setTradingSalesOrderDetail(res.data);
+    } catch (error) {
+      setModuleError(error instanceof Error ? error.message : 'Failed to load sales order.');
+    } finally {
+      setModuleLoading(false);
+    }
+  }, [token]);
+
   const loadAttendance = async () => {
     setModuleLoading(true);
     setModuleError(null);
@@ -3317,6 +3473,18 @@ export function useStaffPortalModel({
       if (route === 'Quotations') {
         return loadCrmQuotations(page, crmQuotationStatus);
       }
+      if (route === 'Clients') {
+        return loadTradingClients(page);
+      }
+      if (route === 'Client requests') {
+        return loadTradingClientRequests(page);
+      }
+      if (route === 'Client quotations') {
+        return loadTradingClientQuotations(page);
+      }
+      if (route === 'Sales orders') {
+        return loadTradingSalesOrders(page);
+      }
       if (route === 'Attendance') {
         return loadAttendance();
       }
@@ -3570,6 +3738,14 @@ export function useStaffPortalModel({
         await loadCrmContracts(1);
       } else if (selectedModule === 'Quotations') {
         await loadCrmQuotations(1, crmQuotationStatus);
+      } else if (selectedModule === 'Clients') {
+        await loadTradingClients(1);
+      } else if (selectedModule === 'Client requests') {
+        await loadTradingClientRequests(1);
+      } else if (selectedModule === 'Client quotations') {
+        await loadTradingClientQuotations(1);
+      } else if (selectedModule === 'Sales orders') {
+        await loadTradingSalesOrders(1);
       } else if (selectedModule === 'Attendance') {
         await loadAttendance();
       } else if (selectedModule === 'Front desk') {
@@ -3810,6 +3986,26 @@ export function useStaffPortalModel({
     crmQuotationPage,
     crmQuotationsUpdatedAt,
     crmQuotationStatus,
+    tradingClientDetail,
+    tradingClientHasMore,
+    tradingClientItems,
+    tradingClientPage,
+    tradingClientsUpdatedAt,
+    tradingClientRequestDetail,
+    tradingClientRequestHasMore,
+    tradingClientRequestItems,
+    tradingClientRequestPage,
+    tradingClientRequestsUpdatedAt,
+    tradingClientQuotationDetail,
+    tradingClientQuotationHasMore,
+    tradingClientQuotationItems,
+    tradingClientQuotationPage,
+    tradingClientQuotationsUpdatedAt,
+    tradingSalesOrderDetail,
+    tradingSalesOrderHasMore,
+    tradingSalesOrderItems,
+    tradingSalesOrderPage,
+    tradingSalesOrdersUpdatedAt,
     dashboardSummaryTiles,
     fetchLogisticsDetail,
     fetchLogisticsDocuments,
@@ -3866,6 +4062,14 @@ export function useStaffPortalModel({
     loadCrmCustomers,
     loadCrmQuotationDetail,
     loadCrmQuotations,
+    loadTradingClientDetail,
+    loadTradingClients,
+    loadTradingClientRequestDetail,
+    loadTradingClientRequests,
+    loadTradingClientQuotationDetail,
+    loadTradingClientQuotations,
+    loadTradingSalesOrderDetail,
+    loadTradingSalesOrders,
     loadLeaveRequestDetail,
     loadLeaveRequests,
     loadMobileSummary,
@@ -4091,6 +4295,10 @@ export function useStaffPortalModel({
     setCrmQuotationPage,
     setCrmQuotationsUpdatedAt,
     setCrmQuotationStatus,
+    setTradingClientDetail,
+    setTradingClientRequestDetail,
+    setTradingClientQuotationDetail,
+    setTradingSalesOrderDetail,
     setLeaveDetail,
     setLeaveEnd,
     setLeaveHasMore,

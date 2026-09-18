@@ -24,6 +24,17 @@ import { StoreMovementLinesScreen } from '../screens/StoreMovementLinesScreen';
 import { DeliveryNoteHeaderScreen } from '../screens/DeliveryNoteHeaderScreen';
 import { DeliveryNoteLinesScreen } from '../screens/DeliveryNoteLinesScreen';
 import { LeaveRequestFormScreen } from '../screens/LeaveRequestFormScreen';
+import { SiteAttendanceSessionScreen } from '../screens/fieldOps/SiteAttendanceSessionScreen';
+import { DutyRosterBoardScreen } from '../screens/fieldOps/DutyRosterBoardScreen';
+import { FieldOpsReportScreen } from '../screens/fieldOps/FieldOpsReportScreen';
+import { OccurrenceBookFormScreen } from '../screens/fieldOps/OccurrenceBookFormScreen';
+import { ShiftHandoverFormScreen } from '../screens/fieldOps/ShiftHandoverFormScreen';
+import { FuelFillFormScreen } from '../screens/fieldOps/FuelFillFormScreen';
+import { FuelFillListScreen } from '../screens/fieldOps/FuelFillListScreen';
+import { FuelFillDetailScreen } from '../screens/fieldOps/FuelFillDetailScreen';
+import { AssetAssignmentListScreen } from '../screens/fieldOps/AssetAssignmentListScreen';
+import { AssetAssignmentIssueScreen } from '../screens/fieldOps/AssetAssignmentIssueScreen';
+import { AssetAssignmentDetailScreen } from '../screens/fieldOps/AssetAssignmentDetailScreen';
 import { RequisitionHeaderScreen } from '../screens/RequisitionHeaderScreen';
 import { RequisitionWorkspaceScreen } from '../screens/RequisitionWorkspaceScreen';
 import { PettyCashRequestFormScreen } from '../screens/PettyCashRequestFormScreen';
@@ -73,6 +84,17 @@ function ModulesNavigator() {
       <ModulesStack.Screen name="DeliveryNoteHeader" component={DeliveryNoteHeaderScreen} />
       <ModulesStack.Screen name="DeliveryNoteLines" component={DeliveryNoteLinesScreen} />
       <ModulesStack.Screen name="LeaveRequestForm" component={LeaveRequestFormScreen} />
+      <ModulesStack.Screen name="SiteAttendanceSession" component={SiteAttendanceSessionScreen} />
+      <ModulesStack.Screen name="DutyRosterBoard" component={DutyRosterBoardScreen} />
+      <ModulesStack.Screen name="FieldOpsReport" component={FieldOpsReportScreen} />
+      <ModulesStack.Screen name="OccurrenceBookForm" component={OccurrenceBookFormScreen} />
+      <ModulesStack.Screen name="ShiftHandoverForm" component={ShiftHandoverFormScreen} />
+      <ModulesStack.Screen name="FuelFillForm" component={FuelFillFormScreen} />
+      <ModulesStack.Screen name="FuelFillList" component={FuelFillListScreen} />
+      <ModulesStack.Screen name="FuelFillDetail" component={FuelFillDetailScreen} />
+      <ModulesStack.Screen name="AssetAssignmentList" component={AssetAssignmentListScreen} />
+      <ModulesStack.Screen name="AssetAssignmentIssue" component={AssetAssignmentIssueScreen} />
+      <ModulesStack.Screen name="AssetAssignmentDetail" component={AssetAssignmentDetailScreen} />
       <ModulesStack.Screen name="RequisitionHeader" component={RequisitionHeaderScreen} />
       <ModulesStack.Screen name="RequisitionWorkspace" component={RequisitionWorkspaceScreen} />
       <ModulesStack.Screen name="PettyCashRequestForm" component={PettyCashRequestFormScreen} />

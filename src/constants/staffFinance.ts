@@ -15,8 +15,6 @@ export const STAFF_FINANCE_CATEGORIES: { value: PettyCashRequestCategory; label:
   { value: 'staff_welfare', label: 'Staff welfare' },
 ];
 
-export const STAFF_FINANCE_CURRENCIES = ['TZS', 'USD'] as const;
-
 export function staffFinanceModuleRoute(requestType: 'imprest' | 'expense_claim'): string {
   return requestType === 'expense_claim' ? 'Expense claims' : 'Staff imprest';
 }

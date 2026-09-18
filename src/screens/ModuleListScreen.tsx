@@ -159,6 +159,10 @@ function hasListFirstUi(moduleRoute: string, portal: ReturnType<typeof useStaffP
     moduleRoute === 'Customers' ||
     moduleRoute === 'Contracts' ||
     moduleRoute === 'Quotations' ||
+    moduleRoute === 'Clients' ||
+    moduleRoute === 'Client requests' ||
+    moduleRoute === 'Client quotations' ||
+    moduleRoute === 'Sales orders' ||
     moduleRoute === 'Front desk' ||
     moduleRoute === 'Retail POS' ||
     moduleRoute === 'Retail POS reports' ||
@@ -171,6 +175,14 @@ function hasListFirstUi(moduleRoute: string, portal: ReturnType<typeof useStaffP
     moduleRoute === 'Products' ||
     moduleRoute === 'Stock by store' ||
     moduleRoute === 'Attendance' ||
+    moduleRoute === 'Site Attendance' ||
+    moduleRoute === 'Duty Roster' ||
+    moduleRoute === 'Deployment Reports' ||
+    moduleRoute === 'Occurrence Book' ||
+    moduleRoute === 'Shift Handover' ||
+    moduleRoute === 'Site Incidents' ||
+    moduleRoute === 'Kit Assignments' ||
+    moduleRoute === 'Fuel Consumption' ||
     moduleRoute === 'Team leave approvals' ||
     moduleRoute === 'HR leave approvals'
   );
@@ -487,6 +499,26 @@ export function ModuleListScreen() {
     crmQuotationStatus,
     setCrmQuotationStatus,
     loadCrmQuotations,
+    tradingClientItems,
+    tradingClientPage,
+    tradingClientHasMore,
+    tradingClientsUpdatedAt,
+    loadTradingClients,
+    tradingClientRequestItems,
+    tradingClientRequestPage,
+    tradingClientRequestHasMore,
+    tradingClientRequestsUpdatedAt,
+    loadTradingClientRequests,
+    tradingClientQuotationItems,
+    tradingClientQuotationPage,
+    tradingClientQuotationHasMore,
+    tradingClientQuotationsUpdatedAt,
+    loadTradingClientQuotations,
+    tradingSalesOrderItems,
+    tradingSalesOrderPage,
+    tradingSalesOrderHasMore,
+    tradingSalesOrdersUpdatedAt,
+    loadTradingSalesOrders,
     supplierItems,
     supplierPage,
     supplierHasMore,
@@ -636,7 +668,20 @@ export function ModuleListScreen() {
     useCallback(() => {
       setPortalActiveTab('modules');
       setPortalSelectedModule(moduleRoute);
-    }, [moduleRoute, setPortalActiveTab, setPortalSelectedModule]),
+      if (moduleRoute === 'Site Attendance' && moduleAccessGate === 'allowed') {
+        // Jump straight to site/employee picker; replace so Back leaves Site Attendance.
+        navigation.replace('SiteAttendanceSession', undefined);
+      }
+      if (moduleRoute === 'Duty Roster' && moduleAccessGate === 'allowed') {
+        navigation.replace('DutyRosterBoard', undefined);
+      }
+      if (moduleRoute === 'Kit Assignments' && moduleAccessGate === 'allowed') {
+        navigation.replace('AssetAssignmentList', undefined);
+      }
+      if (moduleRoute === 'Fuel Consumption' && moduleAccessGate === 'allowed') {
+        navigation.replace('FuelFillList', undefined);
+      }
+    }, [moduleRoute, moduleAccessGate, navigation, setPortalActiveTab, setPortalSelectedModule]),
   );
 
   useEffect(() => {
@@ -2895,6 +2940,211 @@ export function ModuleListScreen() {
           </View>
         ) : null}
 
+        {moduleRoute === 'Clients' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {tradingClientsUpdatedAt ?? 'Not synced yet'}</Text>
+            {moduleError ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Could not load clients</Text>
+                <Text style={styles.emptyStateText}>{moduleError}</Text>
+                <Pressable style={styles.detailsButton} onPress={() => void loadTradingClients(1)}>
+                  <Text style={styles.detailsButtonText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {!moduleError && !moduleLoading && tradingClientItems.length === 0 ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>No clients</Text>
+                <Text style={styles.emptyStateText}>Trading clients will appear here once registered on the web.</Text>
+              </View>
+            ) : null}
+            {tradingClientItems.map((item) => (
+              <Pressable
+                key={item.id}
+                style={styles.approvalCard}
+                onPress={() =>
+                  openRecordDetail({
+                    moduleRoute: 'Clients',
+                    detailKind: 'trading_client',
+                    recordId: item.id,
+                    titleHint: item.name || item.code,
+                  })
+                }
+              >
+                <View style={styles.approvalHeader}>
+                  <Text style={styles.approvalId}>{item.code || item.name}</Text>
+                  <Text style={styles.approvalStatus}>{item.status}</Text>
+                </View>
+                <Text style={styles.approvalSubject} numberOfLines={2}>
+                  {item.name}
+                </Text>
+                <Text style={styles.approvalOwner}>
+                  {item.contact || '—'}
+                  {item.phone ? ` · ${item.phone}` : ''}
+                </Text>
+              </Pressable>
+            ))}
+            {tradingClientHasMore ? (
+              <Pressable style={styles.detailsButton} onPress={() => void loadTradingClients(tradingClientPage + 1)}>
+                <Text style={styles.detailsButtonText}>Load more</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Client requests' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {tradingClientRequestsUpdatedAt ?? 'Not synced yet'}</Text>
+            {moduleError ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Could not load client requests</Text>
+                <Text style={styles.emptyStateText}>{moduleError}</Text>
+                <Pressable style={styles.detailsButton} onPress={() => void loadTradingClientRequests(1)}>
+                  <Text style={styles.detailsButtonText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {!moduleError && !moduleLoading && tradingClientRequestItems.length === 0 ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>No client requests</Text>
+              </View>
+            ) : null}
+            {tradingClientRequestItems.map((item) => (
+              <Pressable
+                key={item.id}
+                style={styles.approvalCard}
+                onPress={() =>
+                  openRecordDetail({
+                    moduleRoute: 'Client requests',
+                    detailKind: 'trading_client_request',
+                    recordId: item.id,
+                    titleHint: item.ref,
+                  })
+                }
+              >
+                <View style={styles.approvalHeader}>
+                  <Text style={styles.approvalId}>{item.ref}</Text>
+                  <Text style={styles.approvalStatus}>{item.status_label}</Text>
+                </View>
+                <Text style={styles.approvalSubject} numberOfLines={2}>
+                  {item.title || '—'}
+                </Text>
+                <Text style={styles.approvalOwner}>
+                  {item.client_name}
+                  {item.request_date ? ` · ${item.request_date}` : ''}
+                </Text>
+              </Pressable>
+            ))}
+            {tradingClientRequestHasMore ? (
+              <Pressable style={styles.detailsButton} onPress={() => void loadTradingClientRequests(tradingClientRequestPage + 1)}>
+                <Text style={styles.detailsButtonText}>Load more</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Client quotations' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {tradingClientQuotationsUpdatedAt ?? 'Not synced yet'}</Text>
+            {moduleError ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Could not load client quotations</Text>
+                <Text style={styles.emptyStateText}>{moduleError}</Text>
+                <Pressable style={styles.detailsButton} onPress={() => void loadTradingClientQuotations(1)}>
+                  <Text style={styles.detailsButtonText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {!moduleError && !moduleLoading && tradingClientQuotationItems.length === 0 ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>No client quotations</Text>
+              </View>
+            ) : null}
+            {tradingClientQuotationItems.map((item) => (
+              <Pressable
+                key={item.id}
+                style={styles.approvalCard}
+                onPress={() =>
+                  openRecordDetail({
+                    moduleRoute: 'Client quotations',
+                    detailKind: 'trading_client_quotation',
+                    recordId: item.id,
+                    titleHint: item.ref,
+                  })
+                }
+              >
+                <View style={styles.approvalHeader}>
+                  <Text style={styles.approvalId}>{item.ref}</Text>
+                  <Text style={styles.approvalStatus}>{item.status_label}</Text>
+                </View>
+                <Text style={styles.approvalSubject} numberOfLines={2}>
+                  {item.client_name}
+                </Text>
+                <Text style={styles.approvalOwner}>
+                  {item.quotation_date ?? '—'}
+                  {item.total_amount != null ? ` · ${item.total_amount.toLocaleString()}` : ''}
+                </Text>
+              </Pressable>
+            ))}
+            {tradingClientQuotationHasMore ? (
+              <Pressable style={styles.detailsButton} onPress={() => void loadTradingClientQuotations(tradingClientQuotationPage + 1)}>
+                <Text style={styles.detailsButtonText}>Load more</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Sales orders' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>Last updated: {tradingSalesOrdersUpdatedAt ?? 'Not synced yet'}</Text>
+            {moduleError ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>Could not load sales orders</Text>
+                <Text style={styles.emptyStateText}>{moduleError}</Text>
+                <Pressable style={styles.detailsButton} onPress={() => void loadTradingSalesOrders(1)}>
+                  <Text style={styles.detailsButtonText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {!moduleError && !moduleLoading && tradingSalesOrderItems.length === 0 ? (
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateTitle}>No sales orders</Text>
+              </View>
+            ) : null}
+            {tradingSalesOrderItems.map((item) => (
+              <Pressable
+                key={item.id}
+                style={styles.approvalCard}
+                onPress={() =>
+                  openRecordDetail({
+                    moduleRoute: 'Sales orders',
+                    detailKind: 'trading_sales_order',
+                    recordId: item.id,
+                    titleHint: item.ref,
+                  })
+                }
+              >
+                <View style={styles.approvalHeader}>
+                  <Text style={styles.approvalId}>{item.ref}</Text>
+                  <Text style={styles.approvalStatus}>{item.status_label}</Text>
+                </View>
+                <Text style={styles.approvalSubject} numberOfLines={2}>
+                  {item.client_name}
+                </Text>
+                <Text style={styles.approvalOwner}>
+                  {item.order_date ?? '—'}
+                  {item.total_amount != null ? ` · ${item.total_amount.toLocaleString()}` : ''}
+                </Text>
+              </Pressable>
+            ))}
+            {tradingSalesOrderHasMore ? (
+              <Pressable style={styles.detailsButton} onPress={() => void loadTradingSalesOrders(tradingSalesOrderPage + 1)}>
+                <Text style={styles.detailsButtonText}>Load more</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
         {moduleRoute === 'Products' ? (
           <View style={styles.approvalsSection}>
             <Text style={{ ...outfit('regular', 12), color: colors.textSecondary, marginBottom: 10 }}>
@@ -3225,6 +3475,85 @@ export function ModuleListScreen() {
                 ) : null}
               </>
             )}
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Site Attendance' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>
+              Supervisor site roll-call: pick a site, review assigned/rostered employees, mark present or absent, then submit.
+            </Text>
+            <Pressable style={styles.primaryAction} onPress={() => navigation.navigate('SiteAttendanceSession', undefined)}>
+              <Text style={styles.primaryActionText}>Open sites & employee list</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Duty Roster' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>
+              Week board of duty / off / present / absent from each employee’s shift pattern and site roll-call.
+            </Text>
+            <Pressable style={styles.primaryAction} onPress={() => navigation.navigate('DutyRosterBoard', undefined)}>
+              <Text style={styles.primaryActionText}>Open duty roster board</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Deployment Reports' ? (
+          <View style={styles.approvalsSection}>
+            <Pressable style={styles.primaryAction} onPress={() => navigation.navigate('FieldOpsReport')}>
+              <Text style={styles.primaryActionText}>Open daily / weekly / monthly reports</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Occurrence Book' ? (
+          <View style={styles.approvalsSection}>
+            <Pressable style={styles.primaryAction} onPress={() => navigation.navigate('OccurrenceBookForm')}>
+              <Text style={styles.primaryActionText}>Open occurrence book</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Shift Handover' ? (
+          <View style={styles.approvalsSection}>
+            <Pressable style={styles.primaryAction} onPress={() => navigation.navigate('ShiftHandoverForm')}>
+              <Text style={styles.primaryActionText}>Open shift handover</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Site Incidents' ? (
+          <View style={styles.approvalsSection}>
+            <View style={styles.emptyStateCard}>
+              <Text style={styles.emptyStateTitle}>Site incidents</Text>
+              <Text style={styles.emptyStateText}>
+                Log and track incidents from the web Field Operations → Incidents screen. Use Occurrence Book on mobile for quick site notes.
+              </Text>
+              <Pressable style={[styles.detailsButton, { marginTop: 12 }]} onPress={() => navigation.navigate('OccurrenceBookForm')}>
+                <Text style={styles.detailsButtonText}>Open occurrence book</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Kit Assignments' ? (
+          <View style={styles.approvalsSection}>
+            <Text style={styles.syncText}>
+              Issue and track uniforms, PPE, radios and kits assigned to field staff. Filter outstanding items and return or transfer from the detail screen.
+            </Text>
+            <Pressable style={styles.primaryAction} onPress={() => navigation.navigate('AssetAssignmentList')}>
+              <Text style={styles.primaryActionText}>Open kit assignments</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {moduleRoute === 'Fuel Consumption' ? (
+          <View style={styles.approvalsSection}>
+            <Pressable style={styles.primaryAction} onPress={() => navigation.navigate('FuelFillList')}>
+              <Text style={styles.primaryActionText}>Open fuel consumption</Text>
+            </Pressable>
           </View>
         ) : null}
 

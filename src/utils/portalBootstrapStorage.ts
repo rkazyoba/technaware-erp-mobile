@@ -2,7 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import type { MobilePortalBootstrap } from '../types/app';
 import { isPortalSnapshotFresh } from './portalSnapshotStorage';
 
-const PREFIX = 'erp_portal_bootstrap_v1:';
+const PREFIX = 'erp_portal_bootstrap_v2:';
 
 function storageKey(userId: string): string {
   const id = userId.trim() || 'anonymous';

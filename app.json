@@ -2,8 +2,8 @@
   "expo": {
     "name": "Technaware ERP",
     "slug": "erp-mobile",
-    "owner": "kazyoba",
-    "version": "1.0.1",
+    "owner": "christopj",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -11,14 +11,14 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "cover",
-      "backgroundColor": "#F0F4F8"
+      "backgroundColor": "#0d1b3e"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "package": "tz.co.technawaresolutions.erpmobile",
-      "versionCode": 1,
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
@@ -35,11 +35,12 @@
         {
           "image": "./assets/splash.png",
           "resizeMode": "cover",
-          "backgroundColor": "#F0F4F8"
+          "backgroundColor": "#0d1b3e"
         }
       ],
       "expo-font",
       "expo-secure-store",
+      "expo-local-authentication",
       "@react-native-community/datetimepicker",
       [
         "expo-camera",
@@ -49,9 +50,8 @@
       ]
     ],
     "extra": {
-      "apiBaseUrl": "http://127.0.0.1:8000/api/v1",
       "eas": {
-        "projectId": "062d361c-5082-4489-9d01-5ed26fb81650"
+        "projectId": "2384d97d-533c-42c3-b8a3-a381cd7bf8db"
       }
     }
   }
